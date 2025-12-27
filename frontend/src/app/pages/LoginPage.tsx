@@ -38,7 +38,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center">
+          <Link href="/" className="inline-flex items-center">
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-2xl">O</span>
             </div>
@@ -104,7 +104,7 @@ export default function LoginPage() {
                     Remember me
                   </label>
                 </div>
-                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                <Link href="/forgot-password" className="text-sm text-primary hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -147,7 +147,7 @@ export default function LoginPage() {
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-primary hover:underline font-medium">
+              <Link href="/signup" className="text-primary hover:underline font-medium">
                 Sign up
               </Link>
             </p>

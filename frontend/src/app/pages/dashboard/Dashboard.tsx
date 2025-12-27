@@ -127,7 +127,7 @@ export default function Dashboard({
               </button>
 
               {/* Start New Project Button */}
-              <Link to="/onboarding">
+              <Link href="/onboarding">
                 <Button>Start New Project</Button>
               </Link>
             </div>

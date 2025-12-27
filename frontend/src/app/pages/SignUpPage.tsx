@@ -48,7 +48,7 @@ export default function SignUpPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center">
+          <Link href="/" className="inline-flex items-center">
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-2xl">O</span>
             </div>
@@ -204,7 +204,7 @@ export default function SignUpPage() {
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link to="/login" className="text-primary hover:underline font-medium">
+              <Link href="/login" className="text-primary hover:underline font-medium">
                 Log in
               </Link>
             </p>
