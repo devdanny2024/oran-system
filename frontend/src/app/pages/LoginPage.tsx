@@ -49,14 +49,11 @@ export default function LoginPage() {
             <Image
               src="/logo.png"
               alt="ORAN"
-              width={48}
-              height={48}
+              width={144}
+              height={144}
               className="rounded-lg"
               priority
             />
-            <span className="ml-3 text-3xl font-semibold text-foreground">
-              ORAN
-            </span>
           </Link>
         </div>
 

@@ -16,14 +16,11 @@ export default function LandingPage() {
                 <Image
                   src="/logo.png"
                   alt="ORAN"
-                  width={40}
-                  height={40}
+                  width={120}
+                  height={120}
                   className="rounded-lg"
                   priority
                 />
-                <span className="ml-2 text-2xl font-semibold text-foreground">
-                  ORAN
-                </span>
               </Link>
             </div>
             <div className="hidden md:flex items-center space-x-8">
