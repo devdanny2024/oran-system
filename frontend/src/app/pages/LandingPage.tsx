@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Play, Lightbulb, DollarSign, Users, TrendingUp, Home, Building2, Check } from 'lucide-react';
@@ -11,12 +12,19 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="flex items-center">
-                <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">O</span>
-                </div>
-                <span className="ml-2 text-2xl font-semibold text-foreground">ORAN</span>
-              </div>
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/logo.png"
+                  alt="ORAN"
+                  width={40}
+                  height={40}
+                  className="rounded-lg"
+                  priority
+                />
+                <span className="ml-2 text-2xl font-semibold text-foreground">
+                  ORAN
+                </span>
+              </Link>
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#home" className="text-foreground hover:text-primary transition-colors">Home</a>

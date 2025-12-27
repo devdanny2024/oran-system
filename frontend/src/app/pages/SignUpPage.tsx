@@ -1,9 +1,16 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
@@ -48,11 +55,18 @@ export default function SignUpPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">O</span>
-            </div>
-            <span className="ml-3 text-3xl font-semibold text-foreground">ORAN</span>
+          <Link href="/" className="inline-flex items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="ORAN"
+              width={48}
+              height={48}
+              className="rounded-lg"
+              priority
+            />
+            <span className="ml-3 text-3xl font-semibold text-foreground">
+              ORAN
+            </span>
           </Link>
         </div>
 
