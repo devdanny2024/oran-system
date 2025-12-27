@@ -1,9 +1,10 @@
+'use client';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { Progress } from '../../../components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Plus, Calendar, DollarSign, Settings } from 'lucide-react';
 
 export default function ProjectsPage() {
@@ -60,7 +61,7 @@ export default function ProjectsPage() {
               <SelectItem value="status">Status</SelectItem>
             </SelectContent>
           </Select>
-          <Link to="/onboarding">
+          <Link href="/onboarding">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               New Project
@@ -190,7 +191,7 @@ export default function ProjectsPage() {
               <p className="text-muted-foreground mb-6">
                 Get started by creating your first smart home automation project
               </p>
-              <Link to="/onboarding">
+              <Link href="/onboarding">
                 <Button size="lg">
                   <Plus className="mr-2 h-5 w-5" />
                   Create Your First Project

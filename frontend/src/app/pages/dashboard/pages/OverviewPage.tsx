@@ -4,7 +4,7 @@ import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
 import { Home, DollarSign, FolderKanban, ArrowRight, CheckCircle, Wrench, Camera } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 export default function OverviewPage() {
   const activeProject = {
@@ -108,8 +108,10 @@ export default function OverviewPage() {
                 </div>
               </div>
             </div>
-            <Link to="/dashboard/projects">
-              <Button>View Details <ArrowRight className="ml-2 h-4 w-4" /></Button>
+            <Link href="/dashboard/projects">
+              <Button>
+                View Details <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </Link>
           </div>
         </CardContent>
