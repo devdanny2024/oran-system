@@ -41,10 +41,14 @@ export default function Dashboard({
       {/* Logo */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xl">O</span>
-          </div>
-          <span className="ml-2 text-2xl font-semibold text-foreground">ORAN</span>
+          <Link href="/" className="flex items-center">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xl">O</span>
+            </div>
+            <span className="ml-2 text-2xl font-semibold text-foreground">
+              ORAN
+            </span>
+          </Link>
         </div>
       </div>
 
@@ -57,7 +61,7 @@ export default function Dashboard({
           return (
             <Link
               key={item.name}
-              to={item.href}
+              href={item.href}
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
                 isActive
