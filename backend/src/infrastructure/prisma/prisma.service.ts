@@ -7,6 +7,14 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
+    if (!process.env.DATABASE_URL) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        'PrismaService: DATABASE_URL is not set; skipping initial DB connect.',
+      );
+      return;
+    }
+
     await this.$connect();
   }
 
@@ -14,4 +22,3 @@ export class PrismaService
     await this.$disconnect();
   }
 }
-
