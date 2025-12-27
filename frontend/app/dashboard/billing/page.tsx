@@ -175,10 +175,10 @@ export default function Page() {
                   </Badge>
                 </span>
                 <span className="flex justify-end gap-2">
-                  <Button variant="outline" size="xs">
+                  <Button variant="outline" size="sm">
                     PDF
                   </Button>
-                  <Button variant="ghost" size="xs">
+                  <Button variant="ghost" size="sm">
                     View
                   </Button>
                 </span>
