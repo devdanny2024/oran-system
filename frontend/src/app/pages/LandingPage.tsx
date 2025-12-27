@@ -184,7 +184,7 @@ export default function LandingPage() {
           <p className="text-xl text-muted-foreground mb-8">
             Start your smart home journey today with ORAN
           </p>
-          <Link to="/signup">
+          <Link href="/signup">
             <Button size="lg" className="text-lg px-8 py-6">
               Start Your Project
             </Button>
