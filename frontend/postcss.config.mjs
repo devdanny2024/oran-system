@@ -13,7 +13,7 @@
  * Otherwise, you can leave this file empty.
  */
 export default {
-  // No custom plugins for now, but Next.js
-  // requires a `plugins` key to be present.
-  plugins: {},
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
 }
