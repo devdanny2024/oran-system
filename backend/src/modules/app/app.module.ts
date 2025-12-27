@@ -1,0 +1,30 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { AuthModule } from '../auth/auth.module';
+import { ProjectsModule } from '../projects/projects.module';
+import { OnboardingModule } from '../onboarding/onboarding.module';
+import { ProductsModule } from '../products/products.module';
+import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
+import { AwsModule } from '../../infrastructure/aws/aws.module';
+import { CacheModule } from '../../infrastructure/cache/cache.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env.local', '.env'],
+    }),
+    PrismaModule,
+    AwsModule,
+    CacheModule,
+    AuthModule,
+    ProjectsModule,
+    OnboardingModule,
+    ProductsModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}

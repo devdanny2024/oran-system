@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  phone        String?
+  passwordHash String
+  role         UserRole  @default(CUSTOMER)
+  projects     Project[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Project {
+  id          String             @id @default(cuid())
+  user        User               @relation(fields: [userId], references: [id])
+  userId      String
+  name        String
+  status      ProjectStatus      @default(ONBOARDING)
+  buildingType String?
+  roomsCount  Int?
+  onboarding  OnboardingSession?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model OnboardingSession {
+  id               String   @id @default(cuid())
+  project          Project  @relation(fields: [projectId], references: [id])
+  projectId        String   @unique
+  projectStatus    String?
+  constructionStage String?
+  needsInspection  Boolean? @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Product {
+  id           String        @id @default(cuid())
+  name         String
+  category     ProductCategory
+  priceTier    PriceTier
+  unitPrice    Decimal
+  description  String?
+  imageUrl     String?
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+enum UserRole {
+  CUSTOMER
+  TECHNICIAN
+  ADMIN
+}
+
+enum ProjectStatus {
+  ONBOARDING
+  INSPECTION_REQUESTED
+  INSPECTION_SCHEDULED
+  INSPECTION_COMPLETED
+  QUOTES_GENERATED
+  QUOTE_SELECTED
+  DOCUMENTS_PENDING
+  DOCUMENTS_SIGNED
+  PAYMENT_PLAN_SELECTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ProductCategory {
+  LIGHTING
+  CLIMATE
+  ACCESS
+  SURVEILLANCE
+  GATE
+  STAIRCASE
+}
+
+enum PriceTier {
+  ECONOMY
+  STANDARD
+  LUXURY
+}
+
