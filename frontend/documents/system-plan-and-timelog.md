@@ -622,7 +622,7 @@ Assuming a ~16-week window as in PRD.
     - `/`, `/login`, `/signup`, `/onboarding`, `/dashboard`, `/dashboard/projects`, `/dashboard/operations`, `/dashboard/billing`, `/dashboard/documents`, `/dashboard/support`.
   - Implemented Operations page UI (`/dashboard/operations`) according to PRD (site trips, visit history, work progress, request visit modal).
   - Implemented Billing page UI (`/dashboard/billing`) with plan summary, payment method, invoice history and action footer.
-  - Fully reviewed the ORAN PRD and extracted:
+- Fully reviewed the ORAN PRD and extracted:
     - Core value proposition and user roles.
     - Onboarding, inspection, AI quote generation, payment models (Milestone and 80/10/10), operations, wallet and AI chat requirements.
   - Designed end-to-end backend architecture:
@@ -632,3 +632,44 @@ Assuming a ~16-week window as in PRD.
   - Mapped PRD user flows to Next.js routes and screens, including quote customization with category tabs and product images.
   - Captured this system plan and time log into `documents/system-plan-and-timelog.md` for future reference.
 
+- **2025-12-27 (Backend bootstrap & infra setup)**
+  - Initialized `backend` Node.js project with Nest-style architecture, core `AppModule`, health endpoint, and initial feature modules: `Auth`, `Projects`, `Onboarding`, `Products`.
+  - Introduced infrastructure layer with `PrismaModule`, `AwsModule` (S3 client), and `CacheModule` (Redis), plus Prisma schema for User/Project/OnboardingSession/Product.
+  - Added `.env.example` and wired config for AWS (RDS, ElastiCache, S3), Paystack, and OpenAI; created `.env` on EC2 from this template.
+  - Set up Git repo (`oran-system`) under personal GitHub account `devdanny2024/oran-system`, fixed author identity, and pushed initial backend + frontend code.
+  - Provisioned EC2 instance `oran-backend-ec2` (t3.micro, Amazon Linux 2023), installed Git/Node, cloned the repo, built the backend, and started it with `PORT=4000` (verified `GET /health` returns status `ok`).
+  - Configured Next.js app pages (`Login`, `Signup`, `Dashboard`, `Onboarding`) as client components to fix Vercel build issues and confirmed frontend builds successfully.
+
+### Remaining work vs. plan
+
+- **Phase 1 (Planning & Foundations)**
+  - [x] Finalize high-level architecture and stack choices.
+  - [x] Create backend repo and bootstrap modules.
+  - [ ] Implement real Auth (signup/login) with password hashing and JWT/session model.
+  - [ ] Define and apply initial DB schema to a managed PostgreSQL instance (AWS RDS) and connect backend via `DATABASE_URL`.
+  - [ ] Connect frontend auth flows to live backend APIs.
+
+- **Phase 2 (Backend Core + Onboarding + Products)**
+  - [ ] Implement full onboarding APIs backed by Prisma models (including inspection preferences and feature selections).
+  - [ ] Implement Product catalog CRUD and seed initial product data.
+  - [ ] Add site visit/inspection models and scheduling APIs.
+  - [ ] Wire Next.js onboarding and product-related flows to backend endpoints.
+
+- **Phase 3 (AI Quote Engine & Quote UI)**
+  - [ ] Implement quote generation service (LLM integration, prompt templates, validation pipeline) and persistence for Quote/QuoteItem.
+  - [ ] Build quotes overview/detail UI hooked to backend, including tiered cards and customization tabs.
+
+- **Phase 4 (Documents & Payments)**
+  - [ ] Implement document templates, PDF generation, and signing endpoints.
+  - [ ] Integrate Paystack (wallet top-ups, milestone and 80/10/10 payments, webhooks, reconciliation).
+  - [ ] Connect billing UI to real wallet/transactions data.
+
+- **Phase 5 (Operations & Technician Flows)**
+  - [ ] Implement site trip allocation logic and operations API.
+  - [ ] Build technician endpoints for trips, check-in/out, and photo uploads; connect to dashboard views.
+
+- **Phase 6 (AI Chat, Notifications, Polishing)**
+  - [ ] Implement AI chat endpoints, notification system (in-app first), and performance/security hardening.
+
+- **Phase 7 (Testing, UAT, Launch Prep)**
+  - [ ] Add automated tests (unit/integration), run UAT, and complete launch documentation.

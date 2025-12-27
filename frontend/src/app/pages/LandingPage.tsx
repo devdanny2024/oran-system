@@ -22,7 +22,7 @@ export default function LandingPage() {
               <a href="#home" className="text-foreground hover:text-primary transition-colors">Home</a>
               <a href="#about" className="text-foreground hover:text-primary transition-colors">About</a>
               <a href="#services" className="text-foreground hover:text-primary transition-colors">Services</a>
-              <Link to="/login">
+              <Link href="/login">
                 <Button variant="outline">Login</Button>
               </Link>
             </div>
@@ -43,7 +43,7 @@ export default function LandingPage() {
                 Get instant quotes, flexible payments, and expert installation.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/signup">
+                <Link href="/signup">
                   <Button size="lg" className="w-full sm:w-auto">Get Started</Button>
                 </Link>
                 <Button size="lg" variant="outline" className="w-full sm:w-auto">
