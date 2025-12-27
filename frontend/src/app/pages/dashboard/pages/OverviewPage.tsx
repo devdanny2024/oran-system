@@ -203,7 +203,7 @@ export default function OverviewPage() {
                       <Progress value={project.progress} className="h-1.5" />
                     )}
                     <div className="flex space-x-2">
-                      <Link to="/dashboard/projects" className="flex-1">
+                      <Link href="/dashboard/projects" className="flex-1">
                         <Button variant="outline" size="sm" className="w-full">
                           View Details
                         </Button>
