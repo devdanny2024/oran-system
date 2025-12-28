@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
+import type { SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -46,8 +47,8 @@ export class AuthService {
         email: user.email,
         role: user.role,
       },
-      secret,
-      { expiresIn },
+      secret as jwt.Secret,
+      { expiresIn } as SignOptions,
     );
   }
 
