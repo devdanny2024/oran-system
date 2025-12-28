@@ -15,7 +15,7 @@ export class QuotesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForProject(projectId: string) {
-    const quotes = await this.prisma.quote.findMany({
+    const quotes = await (this.prisma as any).quote.findMany({
       where: { projectId },
       orderBy: { createdAt: 'desc' },
       include: { items: true },
@@ -25,7 +25,7 @@ export class QuotesService {
   }
 
   async getById(id: string) {
-    const quote = await this.prisma.quote.findUnique({
+    const quote = await (this.prisma as any).quote.findUnique({
       where: { id },
       include: { items: true },
     });
@@ -69,7 +69,7 @@ export class QuotesService {
     const standardItems = this.buildTierItems(products, PriceTier.STANDARD, rooms);
     const luxuryItems = this.buildTierItems(products, PriceTier.LUXURY, rooms);
 
-    const created = await this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx: any) => {
       // Optional: clear old GENERATED quotes so the list stays tidy
       await tx.quote.deleteMany({
         where: { projectId, status: 'GENERATED' },

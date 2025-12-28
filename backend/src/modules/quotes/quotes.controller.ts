@@ -21,4 +21,3 @@ export class QuotesController {
     return this.quotesService.generateForProject(dto.projectId);
   }
 }
-
