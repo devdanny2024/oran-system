@@ -264,7 +264,7 @@ export default function LandingPage() {
                         </div>
                       </div>
                       {!hasScrolledOnce && (
-                        <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce z-10">
+                        <div className="pointer-events-none absolute bottom-20 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce z-10">
                           <ChevronDown className="h-6 w-6 mb-1" />
                           <span>Scroll for more</span>
                         </div>
