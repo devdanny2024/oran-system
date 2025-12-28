@@ -98,7 +98,37 @@ export class AiService {
       // eslint-disable-next-line no-console
       console.log('[AiService] Gemini raw response text', text);
 
-      const parsed = JSON.parse(text) as QuotePlan;
+      // Gemini may occasionally wrap JSON in prose or code fences.
+      // Try to safely extract the first JSON object from the text.
+      const trimmed = text.trim();
+      const firstBrace = trimmed.indexOf('{');
+      const lastBrace = trimmed.lastIndexOf('}');
+
+      if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[AiService] Gemini response did not contain JSON braces',
+          trimmed,
+        );
+        return null;
+      }
+
+      const jsonSlice = trimmed.slice(firstBrace, lastBrace + 1);
+
+      let parsed: QuotePlan;
+      try {
+        parsed = JSON.parse(jsonSlice) as QuotePlan;
+      } catch (parseError) {
+        // eslint-disable-next-line no-console
+        console.error(
+          '[AiService] Failed to parse Gemini JSON',
+          parseError,
+          'raw:',
+          trimmed,
+        );
+        return null;
+      }
+
       if (!parsed.economy || !parsed.standard || !parsed.luxury) {
         return null;
       }

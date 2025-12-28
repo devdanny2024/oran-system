@@ -227,7 +227,6 @@ export class QuotesService {
     }
 
     // Prefer Gemini-generated plan when available.
-    // For debugging, we currently require a Gemini plan and do not fall back.
     const aiPlan = await this.ai.generateQuotePlan({
       project: {
         roomsCount: project.roomsCount,
@@ -252,10 +251,6 @@ export class QuotesService {
       })),
     });
 
-    if (!aiPlan) {
-      throw new Error('Gemini quote plan failed; no plan returned.');
-    }
-
     const rooms =
       project.roomsCount && project.roomsCount > 0 ? project.roomsCount : 1;
 
@@ -266,32 +261,67 @@ export class QuotesService {
 
     const stairSteps = project.onboarding?.stairSteps ?? null;
 
-    const economyItems = this.mapAiItemsToGenerated(
-      products,
-      aiPlan.economy,
-      rooms,
-      selectedFeatures,
-      stairSteps,
-      PriceTier.ECONOMY,
-    );
+    let economyItems: GeneratedQuoteItemInput[];
+    let standardItems: GeneratedQuoteItemInput[];
+    let luxuryItems: GeneratedQuoteItemInput[];
 
-    const standardItems = this.mapAiItemsToGenerated(
-      products,
-      aiPlan.standard,
-      rooms,
-      selectedFeatures,
-      stairSteps,
-      PriceTier.STANDARD,
-    );
+    if (aiPlan) {
+      economyItems = this.mapAiItemsToGenerated(
+        products,
+        aiPlan.economy,
+        rooms,
+        selectedFeatures,
+        stairSteps,
+        PriceTier.ECONOMY,
+      );
 
-    const luxuryItems = this.mapAiItemsToGenerated(
-      products,
-      aiPlan.luxury,
-      rooms,
-      selectedFeatures,
-      stairSteps,
-      PriceTier.LUXURY,
-    );
+      standardItems = this.mapAiItemsToGenerated(
+        products,
+        aiPlan.standard,
+        rooms,
+        selectedFeatures,
+        stairSteps,
+        PriceTier.STANDARD,
+      );
+
+      luxuryItems = this.mapAiItemsToGenerated(
+        products,
+        aiPlan.luxury,
+        rooms,
+        selectedFeatures,
+        stairSteps,
+        PriceTier.LUXURY,
+      );
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[QuotesService] Gemini quote plan missing; falling back to deterministic generator.',
+      );
+
+      economyItems = this.buildTierItems(
+        products,
+        PriceTier.ECONOMY,
+        rooms,
+        selectedFeatures,
+        stairSteps,
+      );
+
+      standardItems = this.buildTierItems(
+        products,
+        PriceTier.STANDARD,
+        rooms,
+        selectedFeatures,
+        stairSteps,
+      );
+
+      luxuryItems = this.buildTierItems(
+        products,
+        PriceTier.LUXURY,
+        rooms,
+        selectedFeatures,
+        stairSteps,
+      );
+    }
 
     const created = await this.prisma.$transaction(async (tx: any) => {
       // Optional: clear old GENERATED quotes so the list stays tidy
