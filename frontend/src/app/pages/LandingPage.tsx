@@ -46,6 +46,7 @@ export default function LandingPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [demoOpen, setDemoOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [hasScrolledOnce, setHasScrolledOnce] = useState(false);
 
   const handleVideoClick = (event: MouseEvent<HTMLVideoElement>) => {
     const video = event.currentTarget;
@@ -62,16 +63,19 @@ export default function LandingPage() {
     if (!demoOpen) return;
     setActiveIndex(0);
     setIsVideoLoading(true);
+    setHasScrolledOnce(false);
   }, [demoOpen]);
 
   const goToNext = () => {
     setActiveIndex((prev) => (prev + 1) % demoVideos.length);
     setIsVideoLoading(true);
+    setHasScrolledOnce(true);
   };
 
   const goToPrev = () => {
     setActiveIndex((prev) => (prev - 1 + demoVideos.length) % demoVideos.length);
     setIsVideoLoading(true);
+    setHasScrolledOnce(true);
   };
 
   const handleContainerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -259,10 +263,12 @@ export default function LandingPage() {
                           </Tooltip>
                         </div>
                       </div>
-                      <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce z-10">
-                        <ChevronDown className="h-6 w-6 mb-1" />
-                        <span>Scroll for more</span>
-                      </div>
+                      {!hasScrolledOnce && (
+                        <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce z-10">
+                          <ChevronDown className="h-6 w-6 mb-1" />
+                          <span>Scroll for more</span>
+                        </div>
+                      )}
                     </div>
                   </DialogContent>
                 </Dialog>
