@@ -223,10 +223,11 @@ export class EmailService {
     const greetingName = params.name?.trim() || 'there';
 
     return this.buildBaseTemplate({
-      title: 'Verify your email address',
-      intro: `Hi ${greetingName}, welcome to ORAN!`,
+      title: 'Verify your ORAN email',
+      intro: `Hi ${greetingName}, welcome to ORAN.`,
       bodyLines: [
-        'To secure your account and unlock your smart home dashboard, please confirm that this email address belongs to you.',
+        'Please confirm that this email address belongs to you so we can keep your ORAN account secure.',
+        'Once your email is verified, you will be able to log in, start new projects and track the status of your smart home journey.',
       ],
       action: {
         label: 'Verify email address',
@@ -242,10 +243,10 @@ export class EmailService {
 
     return this.buildBaseTemplate({
       title: 'Welcome to ORAN Smart Home',
-      intro: `Hi ${greetingName}, we're excited to help you transform your space.`,
+      intro: `Hi ${greetingName}, we're excited to help you transform your space with ORAN.`,
       bodyLines: [
-        'Your ORAN account has been created successfully. From here, you can start a new project, request an inspection, and see smart home options tailored to your space and budget.',
-        'You will receive updates as we generate quotes, prepare documents, and schedule installations.',
+        'Your ORAN account has been created successfully. From here you can start a new project, request an inspection and explore smart home options tailored to your space and budget.',
+        'We will keep you updated as we generate quotes, prepare documents and schedule installations so you always know what is happening next.',
       ],
       footer:
         'Thank you for choosing ORAN. If you have any questions, simply reply to this email or contact our support team.',
@@ -260,10 +261,10 @@ export class EmailService {
 
     return this.buildBaseTemplate({
       title: 'Reset your ORAN password',
-      intro: `Hi ${greetingName}, we received a request to reset your password.`,
+      intro: `Hi ${greetingName}, we received a request to reset the password for your ORAN account.`,
       bodyLines: [
-        'If you requested this, you can create a new password by clicking the button below.',
-        'For your security, this link will expire after a short period.',
+        'If you requested this, you can choose a new password by clicking the button below.',
+        'For your security, this link is only valid for a short period. After it expires you can always start a new reset from the ORAN login page.',
       ],
       action: {
         label: 'Reset password',
@@ -281,18 +282,18 @@ export class EmailService {
     const greetingName = params.name?.trim() || 'there';
 
     return this.buildBaseTemplate({
-      title: 'Set up your ORAN technician account',
-      intro: `Hi ${greetingName}, you've been invited to join ORAN as a technician.`,
+      title: 'You have been invited as an ORAN technician',
+      intro: `Hi ${greetingName}, you've been invited to join the ORAN team as a technician.`,
       bodyLines: [
-        'We created a technician profile for you on the ORAN platform so you can receive site visits, record work progress and upload photos.',
-        'To get started, please choose a secure password for your account.',
+        'We created a technician profile for you on the ORAN platform so you can receive site visits, record work progress and upload photos from the field.',
+        'To get started, please choose a secure password for your account using the button below. You will then be able to sign in and access the technician workspace.',
       ],
       action: {
-        label: 'Create your password',
+        label: 'Create your ORAN password',
         url: params.resetUrl,
       },
       footer:
-        'If you were not expecting this invite, you can safely ignore this email.',
+        'If you were not expecting this invite, you can safely ignore this email and your account will not be activated.',
     });
   }
 }
