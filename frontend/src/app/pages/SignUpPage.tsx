@@ -65,13 +65,13 @@ export default function SignUpPage() {
       return;
     }
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && result.data?.token && result.data?.user) {
       window.localStorage.setItem('oran_token', result.data.token);
       window.localStorage.setItem('oran_user', JSON.stringify(result.data.user));
     }
 
-    toast.success('Account created successfully!');
-    router.push('/onboarding');
+    toast.success('Account created successfully! Check your email to verify your account.');
+    router.push('/login');
   };
 
   return (
