@@ -8,7 +8,8 @@ import {
   Res,
 } from '@nestjs/common';
 import { AgreementsService } from './agreements.service';
-import type { Response as ExpressResponse } from 'express';
+// Use a loose type for the Express response to avoid hard dependency on types.
+type ExpressResponse = any;
 import PDFDocument = require('pdfkit');
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 
