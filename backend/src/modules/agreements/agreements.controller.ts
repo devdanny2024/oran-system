@@ -8,7 +8,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { AgreementsService } from './agreements.service';
-import type { Response } from 'express';
+import type { Response as ExpressResponse } from 'express';
 import PDFDocument = require('pdfkit');
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 
@@ -43,7 +43,7 @@ export class AgreementsController {
   async pdf(
     @Param('projectId') projectId: string,
     @Param('agreementId') agreementId: string,
-    @Res() res: Response,
+    @Res() res: ExpressResponse,
   ) {
     const agreement = await (this.prisma as any).projectAgreement.findFirst({
       where: { id: agreementId, projectId },
