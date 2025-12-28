@@ -33,6 +33,7 @@ export default function TechnicianWorkspace() {
   const [checking, setChecking] = useState(true);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
+  const [updatingTripId, setUpdatingTripId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -64,45 +65,46 @@ export default function TechnicianWorkspace() {
     }
   }, [router]);
 
+  const loadTrips = async (technicianId: string) => {
+    try {
+      setLoadingTrips(true);
+      const res = await fetch(
+        `/api/operations/trips?technicianId=${encodeURIComponent(
+          technicianId,
+        )}`,
+      );
+      const isJson =
+        res.headers
+          .get('content-type')
+          ?.toLowerCase()
+          .includes('application/json') ?? false;
+      const body = isJson ? await res.json() : await res.text();
+
+      if (!res.ok) {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ?? 'Unable to load trips.';
+        toast.error(message);
+        return;
+      }
+
+      const items = (body?.items ?? []) as Trip[];
+      setTrips(items);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to load trips. Please try again.';
+      toast.error(message);
+    } finally {
+      setLoadingTrips(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
-
-    const loadTrips = async () => {
-      try {
-        setLoadingTrips(true);
-        const res = await fetch(
-          `/api/operations/trips?technicianId=${encodeURIComponent(user.id)}`,
-        );
-        const isJson =
-          res.headers
-            .get('content-type')
-            ?.toLowerCase()
-            .includes('application/json') ?? false;
-        const body = isJson ? await res.json() : await res.text();
-
-        if (!res.ok) {
-          const message =
-            typeof body === 'string'
-              ? body
-              : body?.message ?? 'Unable to load trips.';
-          toast.error(message);
-          return;
-        }
-
-        const items = (body?.items ?? []) as Trip[];
-        setTrips(items);
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Unable to load trips. Please try again.';
-        toast.error(message);
-      } finally {
-        setLoadingTrips(false);
-      }
-    };
-
-    void loadTrips();
+    void loadTrips(user.id);
   }, [user]);
 
   const today = new Date();
@@ -174,7 +176,7 @@ export default function TechnicianWorkspace() {
             Today&apos;s work
           </h1>
           <p className="text-sm text-muted-foreground">
-            This is a placeholder workspace. We&apos;ll later hook this into real trip and inspection data.
+            See trips assigned to you and keep track of check-ins and check-outs.
           </p>
         </div>
 
@@ -230,9 +232,9 @@ export default function TechnicianWorkspace() {
                 {upcomingTrips.map((trip) => (
                   <div
                     key={trip.id}
-                    className="flex items-center justify-between py-1 border-b last:border-b-0 border-border/40"
+                    className="flex items-center justify-between gap-3 py-2 border-b last:border-b-0 border-border/40"
                   >
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-foreground">
                         {new Date(trip.scheduledFor).toLocaleString()}
                       </p>
@@ -242,9 +244,107 @@ export default function TechnicianWorkspace() {
                         </p>
                       )}
                     </div>
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                      {trip.status.toLowerCase().replace(/_/g, ' ')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        {trip.status.toLowerCase().replace(/_/g, ' ')}
+                      </span>
+                      {trip.status === 'SCHEDULED' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-[11px] h-7"
+                          disabled={updatingTripId === trip.id}
+                          onClick={async () => {
+                            try {
+                              setUpdatingTripId(trip.id);
+                              const res = await fetch(
+                                `/api/operations/trips/${trip.id}/check-in`,
+                                { method: 'PATCH' },
+                              );
+                              const isJson =
+                                res.headers
+                                  .get('content-type')
+                                  ?.toLowerCase()
+                                  .includes('application/json') ?? false;
+                              const body = isJson
+                                ? await res.json()
+                                : await res.text();
+
+                              if (!res.ok) {
+                                const message =
+                                  typeof body === 'string'
+                                    ? body
+                                    : body?.message ?? 'Unable to check in.';
+                                toast.error(message);
+                                return;
+                              }
+
+                              toast.success('Checked in to trip.');
+                              await loadTrips(user.id);
+                            } catch (error) {
+                              const message =
+                                error instanceof Error
+                                  ? error.message
+                                  : 'Unable to check in. Please try again.';
+                              toast.error(message);
+                            } finally {
+                              setUpdatingTripId(null);
+                            }
+                          }}
+                        >
+                          {updatingTripId === trip.id ? 'Checking in…' : 'Check in'}
+                        </Button>
+                      )}
+                      {trip.status === 'IN_PROGRESS' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-[11px] h-7"
+                          disabled={updatingTripId === trip.id}
+                          onClick={async () => {
+                            try {
+                              setUpdatingTripId(trip.id);
+                              const res = await fetch(
+                                `/api/operations/trips/${trip.id}/check-out`,
+                                { method: 'PATCH' },
+                              );
+                              const isJson =
+                                res.headers
+                                  .get('content-type')
+                                  ?.toLowerCase()
+                                  .includes('application/json') ?? false;
+                              const body = isJson
+                                ? await res.json()
+                                : await res.text();
+
+                              if (!res.ok) {
+                                const message =
+                                  typeof body === 'string'
+                                    ? body
+                                    : body?.message ?? 'Unable to check out.';
+                                toast.error(message);
+                                return;
+                              }
+
+                              toast.success('Checked out of trip.');
+                              await loadTrips(user.id);
+                            } catch (error) {
+                              const message =
+                                error instanceof Error
+                                  ? error.message
+                                  : 'Unable to check out. Please try again.';
+                              toast.error(message);
+                            } finally {
+                              setUpdatingTripId(null);
+                            }
+                          }}
+                        >
+                          {updatingTripId === trip.id
+                            ? 'Checking out…'
+                            : 'Check out'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </>
