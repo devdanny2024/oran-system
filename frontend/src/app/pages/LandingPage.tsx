@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 'use client';
 
-import type { MouseEvent } from 'react';
+import type { MouseEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { MutatingDots } from 'react-loader-spinner';
 import Link from 'next/link';
@@ -11,6 +11,7 @@ import { Card } from '../components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
   DialogTrigger,
 } from '../components/ui/dialog';
 import {
@@ -59,27 +60,6 @@ export default function LandingPage() {
     });
   }, [demoOpen]);
 
-  useEffect(() => {
-    if (!demoOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const container = scrollRef.current;
-      if (!container) return;
-      const step = window.innerHeight * 0.9;
-
-      if (event.key === 'ArrowDown' || event.key === 'PageDown') {
-        event.preventDefault();
-        container.scrollTop += step;
-      } else if (event.key === 'ArrowUp' || event.key === 'PageUp') {
-        event.preventDefault();
-        container.scrollTop -= step;
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true } as any);
-  }, [demoOpen]);
-
   const handleScroll = () => {
     if (typeof window === 'undefined') return;
     const container = scrollRef.current;
@@ -120,6 +100,20 @@ export default function LandingPage() {
 
   const handlePlaying = (index: number) => {
     setLoadingStates((prev) => ({ ...prev, [index]: false }));
+  };
+
+  const handleContainerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const step = window.innerHeight * 0.9;
+
+    if (event.key === 'ArrowDown' || event.key === 'PageDown') {
+      event.preventDefault();
+      container.scrollTop += step;
+    } else if (event.key === 'ArrowUp' || event.key === 'PageUp') {
+      event.preventDefault();
+      container.scrollTop -= step;
+    }
   };
 
   return (
@@ -174,11 +168,24 @@ export default function LandingPage() {
                       Watch Demo
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="w-full max-w-none h-screen p-0 bg-transparent text-white overflow-hidden border-none rounded-none">
+                  <DialogContent
+                    onOpenAutoFocus={(event) => {
+                      // Keep focus on the scroll container so keyboard arrows work.
+                      event.preventDefault();
+                      if (scrollRef.current) {
+                        scrollRef.current.focus();
+                      }
+                    }}
+                    className="w-full max-w-none h-screen p-0 bg-transparent text-white overflow-hidden border-none rounded-none"
+                  >
+                    <DialogTitle className="sr-only">
+                      ORAN Smart Home Demo
+                    </DialogTitle>
                     <div className="relative w-full h-full">
                       <div
                         ref={scrollRef}
                         onScroll={handleScroll}
+                        onKeyDown={handleContainerKeyDown}
                         tabIndex={0}
                         className="h-full overflow-y-auto snap-y snap-mandatory touch-pan-y overscroll-none focus:outline-none"
                       >
