@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { PriceTier, ProductCategory, QuoteStatus } from '@prisma/client';
+import { PriceTier, ProductCategory } from '@prisma/client';
 
 interface GeneratedQuoteItemInput {
   productId: string | null;
@@ -72,7 +72,7 @@ export class QuotesService {
     const created = await this.prisma.$transaction(async (tx) => {
       // Optional: clear old GENERATED quotes so the list stays tidy
       await tx.quote.deleteMany({
-        where: { projectId, status: QuoteStatus.GENERATED },
+        where: { projectId, status: 'GENERATED' },
       });
 
       const createdQuotes = [];
@@ -91,7 +91,7 @@ export class QuotesService {
           data: {
             projectId,
             tier,
-            status: QuoteStatus.GENERATED,
+            status: 'GENERATED',
             title:
               tier === PriceTier.ECONOMY
                 ? 'Economy automation package'
@@ -191,4 +191,3 @@ export class QuotesService {
     return items;
   }
 }
-
