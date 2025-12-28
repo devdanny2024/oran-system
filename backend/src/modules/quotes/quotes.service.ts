@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { PriceTier, ProductCategory } from '@prisma/client';
+import { AddQuoteItemDto } from './dto/add-quote-item.dto';
+import { UpdateQuoteItemDto } from './dto/update-quote-item.dto';
 
 interface GeneratedQuoteItemInput {
   productId: string | null;
@@ -35,6 +37,164 @@ export class QuotesService {
     }
 
     return quote;
+  }
+
+  async selectQuote(id: string) {
+    const existing = await (this.prisma as any).quote.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Quote not found');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx: any) => {
+      await tx.quote.updateMany({
+        where: { projectId: existing.projectId },
+        data: { isSelected: false, status: 'GENERATED' },
+      });
+
+      const selected = await tx.quote.update({
+        where: { id },
+        data: { isSelected: true, status: 'SELECTED' },
+        include: { items: true },
+      });
+
+      await tx.project.update({
+        where: { id: existing.projectId },
+        data: { status: 'QUOTE_SELECTED' },
+      });
+
+      return selected;
+    });
+
+    return updated;
+  }
+
+  async addItem(quoteId: string, dto: AddQuoteItemDto) {
+    const quote = await (this.prisma as any).quote.findUnique({
+      where: { id: quoteId },
+    });
+    if (!quote) {
+      throw new NotFoundException('Quote not found');
+    }
+
+    const product = await this.prisma.product.findUnique({
+      where: { id: dto.productId },
+    });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const created = await this.prisma.$transaction(async (tx: any) => {
+      await tx.quoteItem.create({
+        data: {
+          quoteId,
+          productId: product.id,
+          name: product.name,
+          category: product.category,
+          quantity: dto.quantity,
+          unitPrice: product.unitPrice,
+          totalPrice: Number(product.unitPrice) * dto.quantity,
+        },
+      });
+
+      return this.recalculateTotals(quoteId, tx);
+    });
+
+    return created;
+  }
+
+  async updateItem(quoteId: string, itemId: string, dto: UpdateQuoteItemDto) {
+    const quote = await (this.prisma as any).quote.findUnique({
+      where: { id: quoteId },
+    });
+    if (!quote) {
+      throw new NotFoundException('Quote not found');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx: any) => {
+      const item = await tx.quoteItem.findUnique({
+        where: { id: itemId },
+      });
+
+      if (!item || item.quoteId !== quoteId) {
+        throw new NotFoundException('Quote item not found');
+      }
+
+      const quantity =
+        typeof dto.quantity === 'number' && dto.quantity > 0
+          ? dto.quantity
+          : item.quantity;
+
+      await tx.quoteItem.update({
+        where: { id: itemId },
+        data: {
+          quantity,
+          totalPrice: Number(item.unitPrice) * quantity,
+        },
+      });
+
+      return this.recalculateTotals(quoteId, tx);
+    });
+
+    return updated;
+  }
+
+  async removeItem(quoteId: string, itemId: string) {
+    const quote = await (this.prisma as any).quote.findUnique({
+      where: { id: quoteId },
+    });
+    if (!quote) {
+      throw new NotFoundException('Quote not found');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx: any) => {
+      const item = await tx.quoteItem.findUnique({
+        where: { id: itemId },
+      });
+
+      if (!item || item.quoteId !== quoteId) {
+        throw new NotFoundException('Quote item not found');
+      }
+
+      await tx.quoteItem.delete({
+        where: { id: itemId },
+      });
+
+      return this.recalculateTotals(quoteId, tx);
+    });
+
+    return updated;
+  }
+
+  private async recalculateTotals(quoteId: string, tx?: any) {
+    const client: any = tx ?? this.prisma;
+
+    const quoteWithItems = await client.quote.findUnique({
+      where: { id: quoteId },
+      include: { items: true },
+    });
+
+    if (!quoteWithItems) {
+      throw new NotFoundException('Quote not found');
+    }
+
+    const subtotal = quoteWithItems.items.reduce(
+      (sum: number, item: any) => sum + Number(item.totalPrice),
+      0,
+    );
+
+    const updated = await client.quote.update({
+      where: { id: quoteId },
+      data: {
+        subtotal,
+        total: subtotal,
+      },
+      include: { items: true },
+    });
+
+    return updated;
   }
 
   /**

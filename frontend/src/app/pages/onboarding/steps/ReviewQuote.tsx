@@ -179,8 +179,8 @@ export default function ReviewQuote({ data }: Props) {
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Your AI-generated quote options</h3>
               <p className="text-xs text-muted-foreground">
-                After onboarding, you&apos;ll be able to open a quote and adjust item
-                quantities, swap products and finalize the package that works best for you.
+                Pick a starting point now. You can still open the quote afterwards to
+                adjust quantities, remove items or add extra products before we finalize.
               </p>
               <div className="grid gap-4 md:grid-cols-3">
                 {quotes.map((quote) => (
@@ -212,7 +212,7 @@ export default function ReviewQuote({ data }: Props) {
                     <Separator className="my-2" />
                     <div className="text-[11px] text-muted-foreground flex justify-between">
                       <span>{quote.items.length} line items</span>
-                      <span>Edit details after onboarding</span>
+                      <span>Fully editable after you continue</span>
                     </div>
                   </div>
                 ))}
@@ -224,4 +224,3 @@ export default function ReviewQuote({ data }: Props) {
     </div>
   );
 }
-
