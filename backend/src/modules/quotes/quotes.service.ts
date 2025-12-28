@@ -3,6 +3,7 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { PriceTier, ProductCategory } from '@prisma/client';
 import { AddQuoteItemDto } from './dto/add-quote-item.dto';
 import { UpdateQuoteItemDto } from './dto/update-quote-item.dto';
+import { AiService } from '../../infrastructure/ai/ai.service';
 
 interface GeneratedQuoteItemInput {
   productId: string | null;
@@ -14,7 +15,10 @@ interface GeneratedQuoteItemInput {
 
 @Injectable()
 export class QuotesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ai: AiService,
+  ) {}
 
   async listForProject(projectId: string) {
     const quotes = await (this.prisma as any).quote.findMany({
@@ -222,12 +226,48 @@ export class QuotesService {
       );
     }
 
-    // Very simple heuristic: scale quantities by roomsCount (minimum 1)
-    const rooms = project.roomsCount && project.roomsCount > 0 ? project.roomsCount : 1;
+    // Prefer Gemini-generated plan when available
+    const aiPlan = await this.ai.generateQuotePlan({
+      project: {
+        roomsCount: project.roomsCount,
+        buildingType: project.buildingType,
+      },
+      onboarding: project.onboarding
+        ? {
+            projectStatus: project.onboarding.projectStatus,
+            constructionStage: project.onboarding.constructionStage,
+            needsInspection: project.onboarding.needsInspection,
+            selectedFeatures: Array.isArray(project.onboarding.selectedFeatures)
+              ? (project.onboarding.selectedFeatures as string[])
+              : null,
+            stairSteps: project.onboarding.stairSteps,
+          }
+        : null,
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        category: p.category,
+        priceTier: p.priceTier,
+      })),
+    });
 
-    const economyItems = this.buildTierItems(products, PriceTier.ECONOMY, rooms);
-    const standardItems = this.buildTierItems(products, PriceTier.STANDARD, rooms);
-    const luxuryItems = this.buildTierItems(products, PriceTier.LUXURY, rooms);
+    const rooms =
+      project.roomsCount && project.roomsCount > 0 ? project.roomsCount : 1;
+
+    const economyItems =
+      aiPlan?.economy && aiPlan.economy.length
+        ? this.mapAiItemsToGenerated(products, aiPlan.economy)
+        : this.buildTierItems(products, PriceTier.ECONOMY, rooms);
+
+    const standardItems =
+      aiPlan?.standard && aiPlan.standard.length
+        ? this.mapAiItemsToGenerated(products, aiPlan.standard)
+        : this.buildTierItems(products, PriceTier.STANDARD, rooms);
+
+    const luxuryItems =
+      aiPlan?.luxury && aiPlan.luxury.length
+        ? this.mapAiItemsToGenerated(products, aiPlan.luxury)
+        : this.buildTierItems(products, PriceTier.LUXURY, rooms);
 
     const created = await this.prisma.$transaction(async (tx: any) => {
       // Optional: clear old GENERATED quotes so the list stays tidy
@@ -345,6 +385,36 @@ export class QuotesService {
         category: base.category,
         quantity,
         unitPrice: Number(base.unitPrice),
+      });
+    }
+
+    return items;
+  }
+
+  private mapAiItemsToGenerated(
+    products: Array<{
+      id: string;
+      name: string;
+      category: ProductCategory;
+      priceTier: PriceTier;
+      unitPrice: any;
+    }>,
+    aiItems: { productId: string; quantity: number }[],
+  ): GeneratedQuoteItemInput[] {
+    const items: GeneratedQuoteItemInput[] = [];
+
+    for (const aiItem of aiItems) {
+      const product = products.find((p) => p.id === aiItem.productId);
+      if (!product) continue;
+
+      const quantity = aiItem.quantity > 0 ? aiItem.quantity : 1;
+
+      items.push({
+        productId: product.id,
+        name: product.name,
+        category: product.category,
+        quantity,
+        unitPrice: Number(product.unitPrice),
       });
     }
 
