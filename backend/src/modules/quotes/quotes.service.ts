@@ -254,20 +254,45 @@ export class QuotesService {
     const rooms =
       project.roomsCount && project.roomsCount > 0 ? project.roomsCount : 1;
 
+    const selectedFeatures =
+      (project.onboarding?.selectedFeatures as string[] | undefined)?.map((f) =>
+        String(f).toLowerCase(),
+      ) ?? [];
+
+    const stairSteps = project.onboarding?.stairSteps ?? null;
+
     const economyItems =
       aiPlan?.economy && aiPlan.economy.length
         ? this.mapAiItemsToGenerated(products, aiPlan.economy)
-        : this.buildTierItems(products, PriceTier.ECONOMY, rooms);
+        : this.buildTierItems(
+            products,
+            PriceTier.ECONOMY,
+            rooms,
+            selectedFeatures,
+            stairSteps,
+          );
 
     const standardItems =
       aiPlan?.standard && aiPlan.standard.length
         ? this.mapAiItemsToGenerated(products, aiPlan.standard)
-        : this.buildTierItems(products, PriceTier.STANDARD, rooms);
+        : this.buildTierItems(
+            products,
+            PriceTier.STANDARD,
+            rooms,
+            selectedFeatures,
+            stairSteps,
+          );
 
     const luxuryItems =
       aiPlan?.luxury && aiPlan.luxury.length
         ? this.mapAiItemsToGenerated(products, aiPlan.luxury)
-        : this.buildTierItems(products, PriceTier.LUXURY, rooms);
+        : this.buildTierItems(
+            products,
+            PriceTier.LUXURY,
+            rooms,
+            selectedFeatures,
+            stairSteps,
+          );
 
     const created = await this.prisma.$transaction(async (tx: any) => {
       // Optional: clear old GENERATED quotes so the list stays tidy
@@ -342,15 +367,49 @@ export class QuotesService {
     }>,
     tier: PriceTier,
     rooms: number,
+    selectedFeatures: string[],
+    stairSteps: number | null,
   ): GeneratedQuoteItemInput[] {
     const tierProducts = products.filter((p) => p.priceTier === tier);
 
     const items: GeneratedQuoteItemInput[] = [];
 
-    // Very simple mapping: pick one product per category where available
-    const byCategory: Partial<Record<ProductCategory, { id: string; name: string; category: ProductCategory; unitPrice: any }>> =
-      {};
+    const featureSet = new Set(selectedFeatures);
+
+    const featureToCategory: Record<string, ProductCategory> = {
+      lighting: ProductCategory.LIGHTING,
+      climate: ProductCategory.CLIMATE,
+      surveillance: ProductCategory.SURVEILLANCE,
+      access: ProductCategory.ACCESS,
+      gate: ProductCategory.GATE,
+      staircase: ProductCategory.STAIRCASE,
+    };
+
+    const allowedCategories = new Set<ProductCategory>();
+
+    if (featureSet.size === 0) {
+      // If no features captured, allow all categories.
+      Object.values(ProductCategory).forEach((cat) =>
+        allowedCategories.add(cat),
+      );
+    } else {
+      for (const feature of featureSet) {
+        const mapped = featureToCategory[feature];
+        if (mapped) {
+          allowedCategories.add(mapped);
+        }
+      }
+    }
+
+    // Pick one product per allowed category for this tier.
+    const byCategory: Partial<
+      Record<
+        ProductCategory,
+        { id: string; name: string; category: ProductCategory; unitPrice: any }
+      >
+    > = {};
     for (const p of tierProducts) {
+      if (!allowedCategories.has(p.category)) continue;
       if (!byCategory[p.category]) {
         byCategory[p.category] = {
           id: p.id,
@@ -364,20 +423,47 @@ export class QuotesService {
     for (const category of Object.keys(byCategory) as ProductCategory[]) {
       const base = byCategory[category]!;
 
-      let quantity = 1;
+      let quantity = 0;
+
       if (category === ProductCategory.LIGHTING) {
-        quantity = Math.max(rooms * 2, 2);
+        if (tier === PriceTier.ECONOMY) {
+          quantity = Math.max(rooms * 1, 2);
+        } else if (tier === PriceTier.STANDARD) {
+          quantity = Math.max(rooms * 2, 4);
+        } else {
+          quantity = Math.max(rooms * 3, 6);
+        }
+      } else if (category === ProductCategory.CLIMATE) {
+        if (tier === PriceTier.ECONOMY) {
+          quantity = Math.max(Math.ceil(rooms / 2), 1);
+        } else {
+          quantity = Math.max(rooms, 1);
+        }
       } else if (category === ProductCategory.SURVEILLANCE) {
-        quantity = Math.max(Math.ceil(rooms / 2), 1);
+        if (tier === PriceTier.ECONOMY) {
+          quantity = Math.max(Math.ceil(rooms / 3), 1);
+        } else if (tier === PriceTier.STANDARD) {
+          quantity = Math.max(Math.ceil(rooms / 2), 2);
+        } else {
+          quantity = Math.max(rooms, 3);
+        }
       } else if (category === ProductCategory.ACCESS) {
-        quantity = 1;
+        if (tier === PriceTier.ECONOMY) {
+          quantity = 1;
+        } else if (tier === PriceTier.STANDARD) {
+          quantity = 2;
+        } else {
+          quantity = 3;
+        }
       } else if (category === ProductCategory.GATE) {
         quantity = 1;
       } else if (category === ProductCategory.STAIRCASE) {
-        quantity = 1;
-      } else if (category === ProductCategory.CLIMATE) {
-        quantity = Math.max(rooms, 1);
+        if (stairSteps && stairSteps > 0) {
+          quantity = 1;
+        }
       }
+
+      if (quantity <= 0) continue;
 
       items.push({
         productId: base.id,
