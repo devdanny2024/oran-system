@@ -38,6 +38,17 @@ type Project = {
   onboarding?: Onboarding | null;
 };
 
+type Quote = {
+  id: string;
+  tier: 'ECONOMY' | 'STANDARD' | 'LUXURY';
+  title?: string | null;
+  subtotal: number;
+  total: number;
+  currency: string;
+  isSelected: boolean;
+  items: { id: string }[];
+};
+
 const statusLabel = (status: ProjectStatus) =>
   status.toLowerCase().replace(/_/g, ' ');
 
@@ -48,6 +59,8 @@ export default function ProjectDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [quotesLoading, setQuotesLoading] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -74,6 +87,25 @@ export default function ProjectDetailPage() {
         }
 
         setProject(body as Project);
+
+        // Load any quotes that have been generated for this project.
+        setQuotesLoading(true);
+        try {
+          const resQuotes = await fetch(`/api/quotes/project/${projectId}`);
+          const isJsonQuotes =
+            resQuotes.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const bodyQuotes = isJsonQuotes
+            ? await resQuotes.json()
+            : await resQuotes.text();
+          if (resQuotes.ok) {
+            setQuotes((bodyQuotes?.items ?? []) as Quote[]);
+          }
+        } finally {
+          setQuotesLoading(false);
+        }
       } catch (error) {
         const message =
           error instanceof Error
@@ -199,13 +231,74 @@ export default function ProjectDetailPage() {
         )}
       </Card>
 
-      <Separator />
-
-      <p className="text-xs text-muted-foreground">
-        Over time this page will be expanded with AI quotes, payment plans,
-        visit history and documents for this project.
-      </p>
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Quotes for this project</h2>
+          <span className="text-xs text-muted-foreground">
+            {quotesLoading
+              ? 'Loading quotes...'
+              : quotes.length === 0
+                ? 'No quotes yet'
+                : `${quotes.length} quote${quotes.length > 1 ? 's' : ''}`}
+          </span>
+        </div>
+        {quotesLoading ? (
+          <p className="text-xs text-muted-foreground">
+            Fetching Economy, Standard and Luxury options...
+          </p>
+        ) : quotes.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Once your onboarding is complete, ORAN will generate quote options
+            using our automation product catalog. You&apos;ll be able to open a
+            quote, edit items and choose the package that works best for you.
+          </p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-3">
+            {quotes.map((quote) => (
+              <div
+                key={quote.id}
+                className="border rounded-md p-3 text-xs flex flex-col gap-2"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-foreground text-sm">
+                    {quote.title || `${quote.tier.toLowerCase()} package`}
+                  </span>
+                  <Badge variant="outline" className="uppercase text-[10px]">
+                    {quote.tier.toLowerCase()}
+                  </Badge>
+                </div>
+                <Separator className="my-1" />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium">
+                    ₦{quote.subtotal.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Total</span>
+                  <span className="text-primary">
+                    ₦{quote.total.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[11px] text-muted-foreground">
+                  <span>{quote.items.length} items</span>
+                  {quote.isSelected && <span>Selected</span>}
+                </div>
+                <Button
+                  size="sm"
+                  className="mt-1"
+                  variant="outline"
+                  onClick={() =>
+                    router.push(`/dashboard/quotes/${quote.id}`)
+                  }
+                >
+                  View & edit quote
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
-
