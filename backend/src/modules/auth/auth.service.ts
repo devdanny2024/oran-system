@@ -6,7 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import * as jwt from 'jsonwebtoken';
-import crypto from 'node:crypto';
+import crypto from 'crypto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
