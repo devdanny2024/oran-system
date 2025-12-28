@@ -24,6 +24,8 @@ export class OnboardingService {
         needsInspection: payload.needsInspection ?? false,
         selectedFeatures: payload.selectedFeatures ?? [],
         stairSteps: payload.stairSteps,
+        siteAddress: payload.siteAddress,
+        contactPhone: payload.contactPhone,
       },
       update: {
         projectStatus: payload.projectStatus ?? undefined,
@@ -31,6 +33,8 @@ export class OnboardingService {
         needsInspection: payload.needsInspection ?? undefined,
         selectedFeatures: payload.selectedFeatures ?? undefined,
         stairSteps: payload.stairSteps ?? undefined,
+        siteAddress: payload.siteAddress ?? undefined,
+        contactPhone: payload.contactPhone ?? undefined,
       },
     });
 

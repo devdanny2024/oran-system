@@ -19,6 +19,8 @@ export interface OnboardingData {
   roomCount: number;
   selectedFeatures: string[];
   stairSteps?: number;
+  siteAddress?: string;
+  contactPhone?: string;
 }
 
 export default function OnboardingFlow() {
@@ -104,6 +106,8 @@ export default function OnboardingFlow() {
           needsInspection?: boolean;
           selectedFeatures?: string[];
           stairSteps?: number;
+          siteAddress?: string;
+          contactPhone?: string;
         }
       >('/onboarding', {
         projectId: currentProjectId,
@@ -112,6 +116,8 @@ export default function OnboardingFlow() {
         needsInspection: data.needsInspection ?? false,
         selectedFeatures: data.selectedFeatures,
         stairSteps: data.stairSteps,
+        siteAddress: data.siteAddress,
+        contactPhone: data.contactPhone,
       });
 
       if (!onboardingResult.ok) {

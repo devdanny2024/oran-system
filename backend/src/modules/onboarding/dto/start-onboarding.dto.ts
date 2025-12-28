@@ -5,4 +5,6 @@ export class StartOnboardingDto {
   needsInspection?: boolean;
   selectedFeatures?: string[];
   stairSteps?: number;
+  siteAddress?: string;
+  contactPhone?: string;
 }

@@ -49,4 +49,46 @@ export class ProjectsService {
 
     return project;
   }
+
+  async delete(id: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const quotes = await tx.quote.findMany({
+        where: { projectId: id },
+        select: { id: true },
+      });
+      const quoteIds = quotes.map((q) => q.id);
+
+      if (quoteIds.length > 0) {
+        await tx.quoteItem.deleteMany({
+          where: { quoteId: { in: quoteIds } },
+        });
+      }
+
+      await tx.quote.deleteMany({
+        where: { projectId: id },
+      });
+
+      await tx.trip.deleteMany({
+        where: { projectId: id },
+      });
+
+      await tx.onboardingSession.deleteMany({
+        where: { projectId: id },
+      });
+
+      await tx.project.delete({
+        where: { id },
+      });
+    });
+
+    return { success: true };
+  }
 }

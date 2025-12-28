@@ -48,6 +48,8 @@ model OnboardingSession {
   needsInspection  Boolean? @default(false)
   selectedFeatures Json?
   stairSteps       Int?
+  siteAddress      String?
+  contactPhone     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
