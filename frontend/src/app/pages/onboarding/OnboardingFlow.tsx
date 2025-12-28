@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Progress } from '../../components/ui/progress';
 import { Button } from '../../components/ui/button';
@@ -8,6 +8,8 @@ import BuildingType from './steps/BuildingType';
 import RoomCount from './steps/RoomCount';
 import FeatureSelection from './steps/FeatureSelection';
 import ReviewQuote from './steps/ReviewQuote';
+import { postJson } from '../../lib/api';
+import { toast } from 'sonner';
 
 export interface OnboardingData {
   projectStatus: string;
@@ -23,6 +25,9 @@ export default function OnboardingFlow() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [data, setData] = useState<OnboardingData>({
     projectStatus: '',
     buildingType: '',
@@ -30,11 +35,98 @@ export default function OnboardingFlow() {
     selectedFeatures: []
   });
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const stored = window.localStorage.getItem('oran_user');
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored) as { id?: string };
+      if (parsed?.id) {
+        setUserId(parsed.id);
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
+
+  const finalizeOnboarding = async () => {
+    if (!userId) {
+      toast.error('Please log in again to finish onboarding.');
+      router.push('/login');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let currentProjectId = projectId;
+
+      if (!currentProjectId) {
+        const projectResult = await postJson<
+          { id: string },
+          { name: string; userId: string; buildingType?: string; roomsCount?: number }
+        >('/projects', {
+          name: 'My ORAN Smart Home Project',
+          userId,
+          buildingType: data.buildingType,
+          roomsCount: data.roomCount,
+        });
+
+        if (!projectResult.ok) {
+          toast.error(projectResult.error);
+          setIsSubmitting(false);
+          return;
+        }
+
+        currentProjectId = projectResult.data.id;
+        setProjectId(currentProjectId);
+      }
+
+      const onboardingResult = await postJson<
+        unknown,
+        {
+          projectId: string;
+          projectStatus: string;
+          constructionStage?: string;
+          needsInspection?: boolean;
+          selectedFeatures?: string[];
+          stairSteps?: number;
+        }
+      >('/onboarding', {
+        projectId: currentProjectId,
+        projectStatus: data.projectStatus,
+        constructionStage: data.constructionStage,
+        needsInspection: data.needsInspection ?? false,
+        selectedFeatures: data.selectedFeatures,
+        stairSteps: data.stairSteps,
+      });
+
+      if (!onboardingResult.ok) {
+        toast.error(onboardingResult.error);
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.success('Your project has been captured. We will follow up shortly.');
+      router.push('/dashboard');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to complete onboarding. Please try again.';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
-    } else {
-      router.push('/dashboard');
+    } else if (!isSubmitting) {
+      void finalizeOnboarding();
     }
   };
 
@@ -87,8 +179,12 @@ export default function OnboardingFlow() {
           >
             Back
           </Button>
-          <Button onClick={handleNext}>
-            {currentStep === totalSteps ? 'View Dashboard' : 'Continue'}
+          <Button onClick={handleNext} disabled={isSubmitting}>
+            {currentStep === totalSteps
+              ? isSubmitting
+                ? 'Saving your project...'
+                : 'Finish and go to dashboard'
+              : 'Continue'}
           </Button>
         </div>
       </div>

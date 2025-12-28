@@ -640,14 +640,21 @@ Assuming a ~16-week window as in PRD.
   - Provisioned EC2 instance `oran-backend-ec2` (t3.micro, Amazon Linux 2023), installed Git/Node, cloned the repo, built the backend, and started it with `PORT=4000` (verified `GET /health` returns status `ok`).
   - Configured Next.js app pages (`Login`, `Signup`, `Dashboard`, `Onboarding`) as client components to fix Vercel build issues and confirmed frontend builds successfully.
 
+- **2025-12-28 (Auth, email, Postgres, PM2)**
+  - Implemented real Auth module in Nest backend with password hashing, JWT issuance, email verification, forgot password, and reset password flows, all backed by Prisma models and new `emailVerifiedAt`/token fields on `User`.
+  - Wired frontend auth pages (`/signup`, `/login`, `/verify-email`, `/forgot-password`, `/reset-password`) to Next.js API routes that proxy to the EC2 backend, including a dashboard banner that checks `emailVerifiedAt`.
+  - Installed PostgreSQL on EC2, created `oran_user` and `oran_dev` database, pointed `DATABASE_URL` at this instance, and successfully applied Prisma schema.
+  - Configured SMTP via Resend using SMTP host/user/pass; added EmailService logic so SMTP errors (e.g. unverified domain or test-mode restrictions) are logged but do not break user-facing requests like registration.
+  - Installed and configured PM2 on EC2 to run the Nest backend as `oran-backend` on port `4000`, enabled PM2 startup via systemd, and verified `/health` stays green across restarts.
+
 ### Remaining work vs. plan
 
 - **Phase 1 (Planning & Foundations)**
   - [x] Finalize high-level architecture and stack choices.
   - [x] Create backend repo and bootstrap modules.
-  - [ ] Implement real Auth (signup/login) with password hashing and JWT/session model.
-  - [ ] Define and apply initial DB schema to a managed PostgreSQL instance (AWS RDS) and connect backend via `DATABASE_URL`.
-  - [ ] Connect frontend auth flows to live backend APIs.
+  - [x] Implement real Auth (signup/login) with password hashing and JWT/session model.
+  - [x] Define and apply initial DB schema to a managed PostgreSQL instance (currently self-hosted Postgres on EC2 for MVP) and connect backend via `DATABASE_URL`.
+  - [x] Connect frontend auth flows to live backend APIs.
 
 - **Phase 2 (Backend Core + Onboarding + Products)**
   - [ ] Implement full onboarding APIs backed by Prisma models (including inspection preferences and feature selections).

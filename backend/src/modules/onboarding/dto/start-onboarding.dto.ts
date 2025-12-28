@@ -3,4 +3,6 @@ export class StartOnboardingDto {
   projectStatus?: string;
   constructionStage?: string;
   needsInspection?: boolean;
+  selectedFeatures?: string[];
+  stairSteps?: number;
 }

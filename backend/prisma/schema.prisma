@@ -43,6 +43,8 @@ model OnboardingSession {
   projectStatus    String?
   constructionStage String?
   needsInspection  Boolean? @default(false)
+  selectedFeatures Json?
+  stairSteps       Int?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
