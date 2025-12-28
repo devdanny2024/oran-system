@@ -9,6 +9,7 @@ import { ProductsModule } from '../products/products.module';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { AwsModule } from '../../infrastructure/aws/aws.module';
 import { CacheModule } from '../../infrastructure/cache/cache.module';
+import { EmailModule } from '../../infrastructure/email/email.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { CacheModule } from '../../infrastructure/cache/cache.module';
     PrismaModule,
     AwsModule,
     CacheModule,
+    EmailModule,
     AuthModule,
     ProjectsModule,
     OnboardingModule,

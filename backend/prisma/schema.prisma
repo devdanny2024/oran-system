@@ -14,6 +14,10 @@ model User {
   phone        String?
   passwordHash String
   role         UserRole  @default(CUSTOMER)
+  emailVerifiedAt DateTime?
+  verificationToken String? @unique
+  resetPasswordToken String? @unique
+  resetPasswordExpires DateTime?
   projects     Project[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -90,4 +94,3 @@ enum PriceTier {
   STANDARD
   LUXURY
 }
-

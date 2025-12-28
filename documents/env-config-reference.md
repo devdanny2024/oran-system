@@ -18,10 +18,15 @@
 - `OPENAI_API_KEY=sk-oran-local-1e8f2c9b7a6d`
 - `JWT_SECRET=oran_dev_jwt_9f7c8e14f1a84e6b8a3f2c51`
 - `JWT_EXPIRES_IN=7d`
+- `SMTP_HOST=smtp.oran-local.test`
+- `SMTP_PORT=587`
+- `SMTP_USER=oran_smtp_user_81c7`
+- `SMTP_PASS=oran_smtp_pass_3f9a`
+- `SMTP_FROM="ORAN Smart Home <no-reply@oran.local>"`
+- `FRONTEND_BASE_URL=https://oran-system.vercel.app`
 
 ## Frontend (`frontend/.env.local`)
 
 - `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`
 
 You can update these values on EC2 (and in Vercel) to point at your real database, Redis, AWS, Paystack, and OpenAI accounts. The frontend will automatically talk to whatever `NEXT_PUBLIC_API_BASE_URL` you set.
-
