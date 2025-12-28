@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/media-has-caption */
 'use client';
 
-import type { MouseEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { MouseEvent, WheelEvent, TouchEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { MutatingDots } from 'react-loader-spinner';
 import Link from 'next/link';
@@ -30,52 +30,10 @@ const demoVideos = [
   { src: '/video/periwinkle.mp4', title: 'Periwinkle Smart Home' },
 ];
 
-const infiniteVideos = [...demoVideos, ...demoVideos, ...demoVideos];
-
 export default function LandingPage() {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [demoOpen, setDemoOpen] = useState(false);
-
-  useEffect(() => {
-    if (!demoOpen) return;
-    if (typeof window === 'undefined') return;
-    const container = scrollRef.current;
-    if (!container) return;
-    const itemHeight = window.innerHeight;
-    container.scrollTop = itemHeight * demoVideos.length;
-    container.focus();
-  }, [demoOpen]);
-
-  useEffect(() => {
-    if (!demoOpen) return;
-    const container = scrollRef.current;
-    if (!container) return;
-    const videos = container.querySelectorAll('video');
-    videos.forEach((video) => {
-      video
-        .play()
-        .catch(() => {
-          // Autoplay might be blocked; ignore errors.
-        });
-    });
-  }, [demoOpen]);
-
-  const handleScroll = () => {
-    if (typeof window === 'undefined') return;
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const itemHeight = window.innerHeight;
-    const blockSize = demoVideos.length * itemHeight;
-    const middleStart = blockSize;
-    const middleEnd = blockSize * 2;
-
-    if (container.scrollTop < middleStart - itemHeight) {
-      container.scrollTop += blockSize;
-    } else if (container.scrollTop > middleEnd + itemHeight) {
-      container.scrollTop -= blockSize;
-    }
-  };
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const handleVideoClick = (event: MouseEvent<HTMLVideoElement>) => {
     const video = event.currentTarget;
@@ -86,34 +44,78 @@ export default function LandingPage() {
     }
   };
 
-  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>(
-    () => Object.fromEntries(infiniteVideos.map((_, index) => [index, true])),
-  );
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
 
-  const handleLoadedData = (index: number) => {
-    setLoadingStates((prev) => ({ ...prev, [index]: false }));
+  useEffect(() => {
+    if (!demoOpen) return;
+    setActiveIndex(0);
+    setIsVideoLoading(true);
+  }, [demoOpen]);
+
+  const goToNext = () => {
+    setActiveIndex((prev) => (prev + 1) % demoVideos.length);
+    setIsVideoLoading(true);
   };
 
-  const handleWaiting = (index: number) => {
-    setLoadingStates((prev) => ({ ...prev, [index]: true }));
-  };
-
-  const handlePlaying = (index: number) => {
-    setLoadingStates((prev) => ({ ...prev, [index]: false }));
+  const goToPrev = () => {
+    setActiveIndex((prev) => (prev - 1 + demoVideos.length) % demoVideos.length);
+    setIsVideoLoading(true);
   };
 
   const handleContainerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const step = window.innerHeight * 0.9;
-
     if (event.key === 'ArrowDown' || event.key === 'PageDown') {
       event.preventDefault();
-      container.scrollTop += step;
+      goToNext();
     } else if (event.key === 'ArrowUp' || event.key === 'PageUp') {
       event.preventDefault();
-      container.scrollTop -= step;
+      goToPrev();
     }
+  };
+
+  const lastWheelTimeRef = useRef(0);
+
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    const now = Date.now();
+    if (now - lastWheelTimeRef.current < 400) return;
+    lastWheelTimeRef.current = now;
+
+    if (event.deltaY > 0) {
+      goToNext();
+    } else if (event.deltaY < 0) {
+      goToPrev();
+    }
+  };
+
+  const touchStartYRef = useRef<number | null>(null);
+
+  const handleTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    if (touchStartYRef.current == null) return;
+    const endY = event.changedTouches[0]?.clientY ?? touchStartYRef.current;
+    const deltaY = touchStartYRef.current - endY;
+    touchStartYRef.current = null;
+
+    if (Math.abs(deltaY) < 40) return;
+    if (deltaY > 0) {
+      goToNext();
+    } else {
+      goToPrev();
+    }
+  };
+
+  const handleLoadedData = () => {
+    setIsVideoLoading(false);
+  };
+
+  const handleWaiting = () => {
+    setIsVideoLoading(true);
+  };
+
+  const handlePlaying = () => {
+    setIsVideoLoading(false);
   };
 
   return (
@@ -172,59 +174,48 @@ export default function LandingPage() {
                     onOpenAutoFocus={(event) => {
                       // Keep focus on the scroll container so keyboard arrows work.
                       event.preventDefault();
-                      if (scrollRef.current) {
-                        scrollRef.current.focus();
-                      }
                     }}
                     className="w-full max-w-none h-screen p-0 bg-transparent text-white overflow-hidden border-none rounded-none"
                   >
                     <DialogTitle className="sr-only">
                       ORAN Smart Home Demo
                     </DialogTitle>
-                    <div className="relative w-full h-full">
-                      <div
-                        ref={scrollRef}
-                        onScroll={handleScroll}
-                        onKeyDown={handleContainerKeyDown}
-                        tabIndex={0}
-                        className="h-full overflow-y-auto snap-y snap-mandatory touch-pan-y overscroll-none focus:outline-none"
-                      >
-                        {infiniteVideos.map((video, index) => {
-                          const isLoading = loadingStates[index] ?? true;
-                          return (
-                            <div
-                              // eslint-disable-next-line react/no-array-index-key
-                              key={`${video.src}-${index}`}
-                              className="relative h-screen flex flex-col items-center justify-center snap-start"
-                            >
-                              <video
-                                src={video.src}
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                                onClick={handleVideoClick}
-                                onLoadedData={() => handleLoadedData(index)}
-                                onWaiting={() => handleWaiting(index)}
-                                onPlaying={() => handlePlaying(index)}
-                                className="w-full h-full object-cover"
-                              />
-                              {isLoading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                  <MutatingDots
-                                    height={100}
-                                    width={100}
-                                    color="#F5A623"
-                                    secondaryColor="#F5A623"
-                                    radius={12.5}
-                                    ariaLabel="mutating-dots-loading"
-                                    visible
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                    <div
+                      className="relative w-full h-full"
+                      onKeyDown={handleContainerKeyDown}
+                      onWheel={handleWheel}
+                      onTouchStart={handleTouchStart}
+                      onTouchEnd={handleTouchEnd}
+                      tabIndex={0}
+                    >
+                      <div className="relative h-screen flex flex-col items-center justify-center">
+                        <video
+                          ref={videoRef}
+                          key={demoVideos[activeIndex]?.src}
+                          src={demoVideos[activeIndex]?.src}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          onClick={handleVideoClick}
+                          onLoadedData={handleLoadedData}
+                          onWaiting={handleWaiting}
+                          onPlaying={handlePlaying}
+                          className="w-full h-full object-cover"
+                        />
+                        {isVideoLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                            <MutatingDots
+                              height={100}
+                              width={100}
+                              color="#F5A623"
+                              secondaryColor="#F5A623"
+                              radius={12.5}
+                              ariaLabel="mutating-dots-loading"
+                              visible
+                            />
+                          </div>
+                        )}
                       </div>
                       <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce z-10">
                         <ChevronDown className="h-6 w-6 mb-1" />
