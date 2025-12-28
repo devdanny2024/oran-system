@@ -67,7 +67,30 @@ export default function LoginPage() {
     if (user.role === 'ADMIN' || user.role === 'TECHNICIAN') {
       router.push('/admin');
     } else {
-      router.push('/dashboard');
+      try {
+        const res = await fetch('/api/projects');
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        let hasProjects = false;
+        if (res.ok && body?.items && Array.isArray(body.items)) {
+          hasProjects = body.items.some(
+            (p: { userId?: string }) => !p.userId || p.userId === user.id,
+          );
+        }
+
+        if (!hasProjects) {
+          router.push('/onboarding');
+        } else {
+          router.push('/dashboard');
+        }
+      } catch {
+        router.push('/dashboard');
+      }
     }
   };
 

@@ -237,8 +237,16 @@ export default function ProjectsPage() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-2">
-                    <Button variant="default" size="sm" disabled>
-                      View Details (coming soon)
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() =>
+                        window.location.assign(
+                          `/dashboard/projects/${project.id}`,
+                        )
+                      }
+                    >
+                      View project
                     </Button>
                     <Button variant="outline" size="sm" disabled>
                       Operations (coming soon)
@@ -281,4 +289,3 @@ export default function ProjectsPage() {
     </div>
   );
 }
-
