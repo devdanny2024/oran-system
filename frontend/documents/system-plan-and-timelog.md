@@ -652,6 +652,7 @@ Assuming a ~16-week window as in PRD.
   - Added Next.js API routes for `/api/projects`, `/api/onboarding`, and `/api/products` that proxy to the EC2 backend.
   - Wired the multi-step onboarding flow to create a `Project` and upsert `OnboardingSession` on the final step, with toasts and error handling.
   - Introduced an `/admin` page in the frontend that is only accessible to users with `ADMIN` or `TECHNICIAN` roles (checked from `oran_user` in `localStorage`) and shows a simple admin/technician overview shell we can extend later.
+  - Added a `/technician` workspace page, also gated to `TECHNICIAN` and `ADMIN` roles, that will later surface trip assignments and work progress for technicians.
 
 ### Remaining work vs. plan
 
