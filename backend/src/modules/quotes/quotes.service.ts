@@ -197,8 +197,14 @@ export class QuotesService {
 
     const locationHint =
       (quoteWithItems as any).project?.onboarding?.siteAddress ?? null;
+    const roomsCount = (quoteWithItems as any).project?.roomsCount ?? null;
 
-    const fees = computeQuoteFees(subtotalNumber, totalDevices, locationHint);
+    const fees = computeQuoteFees(
+      subtotalNumber,
+      totalDevices,
+      locationHint,
+      roomsCount,
+    );
 
     const updated = await client.quote.update({
       where: { id: quoteId },
@@ -365,6 +371,7 @@ export class QuotesService {
           subtotalNumber,
           totalDevices,
           locationHint,
+          project.roomsCount ?? null,
         );
 
         const quote = await tx.quote.create({
