@@ -2,8 +2,9 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+// Browser calls always go via our Next.js API routes (same origin, HTTPS on Vercel).
+// On the server, NEXT_PUBLIC_API_BASE_URL can still be overridden if needed.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
 async function request<T>(
   path: string,
@@ -53,4 +54,3 @@ export function postJson<TResponse, TPayload extends object>(
     body: JSON.stringify(payload),
   });
 }
-
