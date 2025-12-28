@@ -34,6 +34,7 @@ model Project {
   roomsCount  Int?
   onboarding  OnboardingSession?
   trips       Trip[]
+  quotes      Quote[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
@@ -81,6 +82,36 @@ model Trip {
   updatedAt     DateTime      @updatedAt
 }
 
+model Quote {
+  id          String       @id @default(cuid())
+  project     Project      @relation(fields: [projectId], references: [id])
+  projectId   String
+  tier        PriceTier
+  status      QuoteStatus  @default(GENERATED)
+  title       String?
+  currency    String       @default("NGN")
+  subtotal    Decimal
+  total       Decimal
+  isSelected  Boolean      @default(false)
+  items       QuoteItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model QuoteItem {
+  id          String         @id @default(cuid())
+  quote       Quote          @relation(fields: [quoteId], references: [id])
+  quoteId     String
+  product     Product?       @relation(fields: [productId], references: [id])
+  productId   String?
+  name        String
+  category    ProductCategory
+  quantity    Int
+  unitPrice   Decimal
+  totalPrice  Decimal
+  notes       String?
+}
+
 enum UserRole {
   CUSTOMER
   TECHNICIAN
@@ -121,4 +152,10 @@ enum TripStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+enum QuoteStatus {
+  GENERATED
+  CUSTOMER_EDITED
+  SELECTED
 }

@@ -4,23 +4,50 @@ import { Badge } from '../../../components/ui/badge';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { OnboardingData } from '../OnboardingFlow';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { postJson } from '../../../lib/api';
 
 interface Props {
   data: OnboardingData;
   updateData: (data: Partial<OnboardingData>) => void;
 }
 
+type QuoteItem = {
+  id: string;
+  name: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+};
+
+type Quote = {
+  id: string;
+  tier: 'ECONOMY' | 'STANDARD' | 'LUXURY';
+  title?: string | null;
+  subtotal: number;
+  total: number;
+  currency: string;
+  items: QuoteItem[];
+};
+
 export default function ReviewQuote({ data }: Props) {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate quote generation
+    if (typeof window === 'undefined') return;
+    const id = window.localStorage.getItem('oran_last_project_id');
+    if (id) setProjectId(id);
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => {
-      setProgress(prev => {
+      setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
-          setLoading(false);
           return 100;
         }
         return prev + 10;
@@ -30,21 +57,45 @@ export default function ReviewQuote({ data }: Props) {
     return () => clearInterval(interval);
   }, []);
 
-  const mockQuote = {
-    products: 2850000,
-    installation: 450000,
-    serviceFee: 150000,
-    vat: 258750,
-    total: 3708750,
-    items: 42,
-    timeline: '6-8 weeks'
-  };
+  useEffect(() => {
+    const loadQuotes = async () => {
+      if (!projectId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await postJson<{ items: Quote[] }, never>(
+          `/quotes/project/${projectId}` as '/quotes/project/${string}',
+          undefined as never,
+        );
+
+        if (!res.ok) {
+          toast.error(res.error || 'Unable to load quotes yet.');
+        } else {
+          setQuotes(res.data.items);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load quotes yet.';
+        toast.error(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadQuotes();
+  }, [projectId]);
 
   return (
     <div className="space-y-6">
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-foreground">Review Your Requirements</h1>
-        <p className="text-muted-foreground">Here's what we gathered from your selections</p>
+        <p className="text-muted-foreground">
+          Here&apos;s what we gathered from your selections
+        </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6 mt-8">
@@ -54,11 +105,15 @@ export default function ReviewQuote({ data }: Props) {
           <div className="space-y-3">
             <div>
               <span className="text-sm text-muted-foreground">Project Type:</span>
-              <p className="font-medium capitalize">{data.projectStatus || 'Not specified'}</p>
+              <p className="font-medium capitalize">
+                {data.projectStatus || 'Not specified'}
+              </p>
             </div>
             <div>
               <span className="text-sm text-muted-foreground">Building Type:</span>
-              <p className="font-medium capitalize">{data.buildingType || 'Not specified'}</p>
+              <p className="font-medium capitalize">
+                {data.buildingType || 'Not specified'}
+              </p>
             </div>
             <div>
               <span className="text-sm text-muted-foreground">Rooms:</span>
@@ -68,7 +123,7 @@ export default function ReviewQuote({ data }: Props) {
               <span className="text-sm text-muted-foreground">Selected Features:</span>
               <div className="flex flex-wrap gap-2 mt-2">
                 {data.selectedFeatures && data.selectedFeatures.length > 0 ? (
-                  data.selectedFeatures.map(feature => (
+                  data.selectedFeatures.map((feature) => (
                     <Badge key={feature} variant="secondary" className="capitalize">
                       {feature}
                     </Badge>
@@ -87,10 +142,12 @@ export default function ReviewQuote({ data }: Props) {
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <h3 className="font-semibold text-lg">Generating your custom quote...</h3>
+                <h3 className="font-semibold text-lg">
+                  Generating your custom quote...
+                </h3>
               </div>
               <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-primary transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
@@ -104,53 +161,61 @@ export default function ReviewQuote({ data }: Props) {
                   <CheckCircle className="h-4 w-4 text-accent" />
                   <span>Calculating product requirements</span>
                 </div>
-                <div className={progress > 50 ? 'flex items-center space-x-2' : 'flex items-center space-x-2 opacity-50'}>
+                <div className="flex items-center space-x-2 opacity-80">
                   <CheckCircle className="h-4 w-4 text-accent" />
                   <span>Optimizing installation costs</span>
                 </div>
               </div>
             </div>
-          ) : (
+          ) : quotes.length === 0 ? (
             <div>
-              <h3 className="font-semibold text-lg mb-4">Your Quote</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Products:</span>
-                  <span className="font-medium">₦{mockQuote.products.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Installation:</span>
-                  <span className="font-medium">₦{mockQuote.installation.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Service Fee:</span>
-                  <span className="font-medium">₦{mockQuote.serviceFee.toLocaleString()}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span className="font-medium">
-                    ₦{(mockQuote.products + mockQuote.installation + mockQuote.serviceFee).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">VAT (7.5%):</span>
-                  <span className="font-medium">₦{mockQuote.vat.toLocaleString()}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total:</span>
-                  <span className="text-primary">₦{mockQuote.total.toLocaleString()}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Items:</span>
-                  <span>{mockQuote.items} products</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Timeline:</span>
-                  <span>{mockQuote.timeline}</span>
-                </div>
+              <h3 className="font-semibold text-lg mb-4">Quotes will appear here</h3>
+              <p className="text-sm text-muted-foreground">
+                After you finish onboarding, ORAN will generate Economy, Standard and
+                Luxury quote options using our automation product catalog.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Your AI-generated quote options</h3>
+              <p className="text-xs text-muted-foreground">
+                After onboarding, you&apos;ll be able to open a quote and adjust item
+                quantities, swap products and finalize the package that works best for you.
+              </p>
+              <div className="grid gap-4 md:grid-cols-3">
+                {quotes.map((quote) => (
+                  <div
+                    key={quote.id}
+                    className="border rounded-lg p-4 flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">
+                        {quote.title || `${quote.tier.toLowerCase()} package`}
+                      </span>
+                      <Badge variant="outline" className="uppercase text-[10px]">
+                        {quote.tier.toLowerCase()}
+                      </Badge>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span className="font-medium">
+                        ₦{quote.subtotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold">
+                      <span>Total</span>
+                      <span className="text-primary">
+                        ₦{quote.total.toLocaleString()}
+                      </span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="text-[11px] text-muted-foreground flex justify-between">
+                      <span>{quote.items.length} line items</span>
+                      <span>Edit details after onboarding</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -159,3 +224,4 @@ export default function ReviewQuote({ data }: Props) {
     </div>
   );
 }
+

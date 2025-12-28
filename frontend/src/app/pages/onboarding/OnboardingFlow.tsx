@@ -66,7 +66,12 @@ export default function OnboardingFlow() {
       if (!currentProjectId) {
         const projectResult = await postJson<
           { id: string },
-          { name: string; userId: string; buildingType?: string; roomsCount?: number }
+          {
+            name: string;
+            userId: string;
+            buildingType?: string;
+            roomsCount?: number;
+          }
         >('/projects', {
           name: 'My ORAN Smart Home Project',
           userId,
@@ -82,6 +87,12 @@ export default function OnboardingFlow() {
 
         currentProjectId = projectResult.data.id;
         setProjectId(currentProjectId);
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(
+            'oran_last_project_id',
+            projectResult.data.id,
+          );
+        }
       }
 
       const onboardingResult = await postJson<
@@ -109,7 +120,23 @@ export default function OnboardingFlow() {
         return;
       }
 
-      toast.success('Your project has been captured. We will follow up shortly.');
+      // Generate AI-backed quotes for this project.
+      const quotesResult = await postJson<
+        { items: unknown[] },
+        { projectId: string }
+      >('/quotes/generate', {
+        projectId: currentProjectId,
+      });
+
+      if (!quotesResult.ok) {
+        toast.error(
+          quotesResult.error ||
+            'We captured your project, but could not generate quotes yet.',
+        );
+      } else {
+        toast.success('Your project has been captured and quotes generated.');
+      }
+
       router.push('/dashboard');
     } catch (error) {
       const message =

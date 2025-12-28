@@ -7,6 +7,7 @@ import { ProjectsModule } from '../projects/projects.module';
 import { OnboardingModule } from '../onboarding/onboarding.module';
 import { ProductsModule } from '../products/products.module';
 import { OperationsModule } from '../operations/operations.module';
+import { QuotesModule } from '../quotes/quotes.module';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { AwsModule } from '../../infrastructure/aws/aws.module';
 import { CacheModule } from '../../infrastructure/cache/cache.module';
@@ -27,6 +28,7 @@ import { EmailModule } from '../../infrastructure/email/email.module';
     OnboardingModule,
     ProductsModule,
     OperationsModule,
+    QuotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
