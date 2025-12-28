@@ -228,7 +228,10 @@ export default function AdminDashboard() {
                 projects.slice(0, 5).map((project) => (
                   <div
                     key={project.id}
-                    className="p-3 text-xs flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                    className="p-3 text-xs flex flex-col md:flex-row md:items-center md:justify-between gap-2 cursor-pointer hover:bg-muted/60"
+                    onClick={() => router.push(`/admin/projects/${project.id}`)}
+                    role="button"
+                    tabIndex={0}
                   >
                     <div>
                       <p className="font-medium text-foreground text-sm">
@@ -274,4 +277,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
