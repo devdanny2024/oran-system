@@ -69,7 +69,8 @@ export class AiService {
             },
           ],
           generationConfig: {
-            responseMimeType: 'application/json',
+            // Use snake_case per Gemini API spec.
+            response_mime_type: 'application/json',
           },
         }),
       });
