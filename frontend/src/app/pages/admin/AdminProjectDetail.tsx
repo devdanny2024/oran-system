@@ -29,6 +29,18 @@ type Project = {
   onboarding?: Onboarding | null;
 };
 
+type TripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+type Trip = {
+  id: string;
+  status: TripStatus;
+  scheduledFor: string;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
+  notes?: string | null;
+  technicianId?: string | null;
+};
+
 const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN'];
 
 export default function AdminProjectDetail() {
@@ -39,6 +51,12 @@ export default function AdminProjectDetail() {
   const [checking, setChecking] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [tripsLoading, setTripsLoading] = useState(false);
+  const [creatingTrip, setCreatingTrip] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState('');
+  const [technicianId, setTechnicianId] = useState('');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -71,7 +89,7 @@ export default function AdminProjectDetail() {
   useEffect(() => {
     if (!projectId) return;
 
-    const load = async () => {
+    const loadProject = async () => {
       try {
         setLoading(true);
         const res = await fetch(`/api/projects/${projectId}`);
@@ -103,7 +121,43 @@ export default function AdminProjectDetail() {
       }
     };
 
-    void load();
+    const loadTrips = async () => {
+      try {
+        setTripsLoading(true);
+        const res = await fetch(
+          `/api/operations/trips?projectId=${encodeURIComponent(projectId)}`,
+        );
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load trips.';
+          toast.error(message);
+          return;
+        }
+
+        const items = (body?.items ?? []) as Trip[];
+        setTrips(items);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load trips. Please try again.';
+        toast.error(message);
+      } finally {
+        setTripsLoading(false);
+      }
+    };
+
+    void loadProject();
+    void loadTrips();
   }, [projectId]);
 
   if (checking) {
@@ -234,14 +288,178 @@ export default function AdminProjectDetail() {
 
         <Separator />
 
-        <section>
-          <p className="text-xs text-muted-foreground">
-            We can later extend this view with AI quotes, payment plans, site
-            visits and technician notes for this project.
-          </p>
+        <section className="grid gap-4 md:grid-cols-2 items-start">
+          <Card className="p-4 space-y-3">
+            <h2 className="text-sm font-semibold">Schedule a site visit</h2>
+            <p className="text-xs text-muted-foreground">
+              Create a basic trip for this project. You can paste a technician
+              ID for now; later we can add a picker.
+            </p>
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="block text-muted-foreground" htmlFor="scheduledFor">
+                  Scheduled for (ISO or local date-time)
+                </label>
+                <input
+                  id="scheduledFor"
+                  type="datetime-local"
+                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-muted-foreground" htmlFor="technicianId">
+                  Technician ID (optional)
+                </label>
+                <input
+                  id="technicianId"
+                  type="text"
+                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                  placeholder="Paste technician user id"
+                  value={technicianId}
+                  onChange={(e) => setTechnicianId(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-muted-foreground" htmlFor="notes">
+                  Notes
+                </label>
+                <textarea
+                  id="notes"
+                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs resize-none"
+                  rows={3}
+                  placeholder="Short description of the visit"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+              <Button
+                size="sm"
+                disabled={creatingTrip || !scheduledFor}
+                onClick={async () => {
+                  if (!scheduledFor) {
+                    toast.error('Please choose a date and time.');
+                    return;
+                  }
+                  try {
+                    setCreatingTrip(true);
+                    const payload: {
+                      projectId: string;
+                      scheduledFor: string;
+                      notes?: string;
+                      technicianId?: string;
+                    } = {
+                      projectId: project.id,
+                      scheduledFor: new Date(scheduledFor).toISOString(),
+                    };
+                    if (notes.trim()) payload.notes = notes.trim();
+                    if (technicianId.trim()) payload.technicianId = technicianId.trim();
+
+                    const res = await fetch('/api/operations/trips', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload),
+                    });
+                    const isJson =
+                      res.headers
+                        .get('content-type')
+                        ?.toLowerCase()
+                        .includes('application/json') ?? false;
+                    const body = isJson ? await res.json() : await res.text();
+
+                    if (!res.ok) {
+                      const message =
+                        typeof body === 'string'
+                          ? body
+                          : body?.message ?? 'Unable to create trip.';
+                      toast.error(message);
+                      return;
+                    }
+
+                    toast.success('Trip scheduled for this project.');
+                    setScheduledFor('');
+                    setNotes('');
+                    await (async () => {
+                      try {
+                        setTripsLoading(true);
+                        const resTrips = await fetch(
+                          `/api/operations/trips?projectId=${encodeURIComponent(
+                            project.id,
+                          )}`,
+                        );
+                        const isJsonTrips =
+                          resTrips.headers
+                            .get('content-type')
+                            ?.toLowerCase()
+                            .includes('application/json') ?? false;
+                        const bodyTrips = isJsonTrips
+                          ? await resTrips.json()
+                          : await resTrips.text();
+
+                        if (resTrips.ok) {
+                          setTrips((bodyTrips?.items ?? []) as Trip[]);
+                        }
+                      } finally {
+                        setTripsLoading(false);
+                      }
+                    })();
+                  } catch (error) {
+                    const message =
+                      error instanceof Error
+                        ? error.message
+                        : 'Unable to create trip. Please try again.';
+                    toast.error(message);
+                  } finally {
+                    setCreatingTrip(false);
+                  }
+                }}
+              >
+                {creatingTrip ? 'Scheduling…' : 'Schedule visit'}
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="p-4 space-y-3">
+            <h2 className="text-sm font-semibold">Trips for this project</h2>
+            {tripsLoading ? (
+              <p className="text-xs text-muted-foreground">Loading trips…</p>
+            ) : trips.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No trips have been created for this project yet.
+              </p>
+            ) : (
+              <div className="space-y-2 text-xs text-muted-foreground">
+                {trips.map((trip) => (
+                  <div
+                    key={trip.id}
+                    className="flex items-center justify-between border-b border-border/40 pb-2 last:border-b-0"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {new Date(trip.scheduledFor).toLocaleString()}
+                      </p>
+                      {trip.notes && (
+                        <p className="text-[11px]">{trip.notes}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[11px] uppercase tracking-wide">
+                        {trip.status.toLowerCase().replace(/_/g, ' ')}
+                      </p>
+                      {trip.technicianId && (
+                        <p className="text-[10px]">
+                          Tech: {trip.technicianId.slice(0, 6)}…
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
         </section>
       </main>
     </div>
   );
 }
-
