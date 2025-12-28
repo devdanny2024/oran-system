@@ -249,10 +249,56 @@ export default function ProjectsPage() {
                       View project
                     </Button>
                     <Button variant="outline" size="sm" disabled>
-                      Operations (coming soon)
-                    </Button>
-                    <Button variant="outline" size="sm" disabled>
                       Billing (coming soon)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const confirmed = window.confirm(
+                          'Delete this project? This will also remove its onboarding and quotes.',
+                        );
+                        if (!confirmed) return;
+
+                        try {
+                          const res = await fetch(
+                            `/api/projects/${project.id}`,
+                            { method: 'DELETE' },
+                          );
+
+                          const isJson =
+                            res.headers
+                              .get('content-type')
+                              ?.toLowerCase()
+                              .includes('application/json') ?? false;
+                          const body = isJson
+                            ? await res.json()
+                            : await res.text();
+
+                          if (!res.ok) {
+                            const message =
+                              typeof body === 'string'
+                                ? body
+                                : body?.message ??
+                                  'Unable to delete project.';
+                            toast.error(message);
+                            return;
+                          }
+
+                          toast.success('Project deleted.');
+                          setProjects((prev) =>
+                            prev.filter((p) => p.id !== project.id),
+                          );
+                        } catch (error) {
+                          const message =
+                            error instanceof Error
+                              ? error.message
+                              : 'Unable to delete project. Please try again.';
+                          toast.error(message);
+                        }
+                      }}
+                    >
+                      Delete project
                     </Button>
                   </div>
                 </CardContent>
