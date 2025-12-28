@@ -19,6 +19,7 @@ async function main() {
       unitPrice: '18000',
       imageUrl:
         'https://placehold.co/600x400?text=Smart+LED+Downlight',
+      videoUrl: null,
       description:
         'Energy-efficient smart LED downlight with dimming and warm/cool white control, app and voice compatible.',
     },
@@ -31,6 +32,7 @@ async function main() {
       unitPrice: '95000',
       imageUrl:
         'https://placehold.co/600x400?text=Smart+Chandelier+Controller',
+      videoUrl: null,
       description:
         'Luxury smart controller for multi-arm chandeliers with scenes, scheduling, and remote access.',
     },
@@ -43,6 +45,7 @@ async function main() {
       unitPrice: '35000',
       imageUrl:
         'https://placehold.co/600x400?text=Wi-Fi+Touch+Switch',
+      videoUrl: null,
       description:
         'Tempered-glass touch switch with three circuits, app control, and scene automation.',
     },
@@ -55,6 +58,7 @@ async function main() {
       unitPrice: '75000',
       imageUrl:
         'https://placehold.co/600x400?text=Smart+Thermostat',
+      videoUrl: null,
       description:
         'Smart thermostat for AC units with scheduling, energy monitoring, and remote control.',
     },
@@ -67,6 +71,7 @@ async function main() {
       unitPrice: '22000',
       imageUrl:
         'https://placehold.co/600x400?text=Contact+Sensor',
+      videoUrl: null,
       description:
         'Wireless contact sensors for monitoring doors and windows, with instant phone alerts.',
     },
@@ -79,6 +84,7 @@ async function main() {
       unitPrice: '210000',
       imageUrl:
         'https://placehold.co/600x400?text=Smart+Door+Lock',
+      videoUrl: null,
       description:
         'High-security smart lock with fingerprint, PIN, key, and app access, suitable for main entrances.',
     },
@@ -91,6 +97,7 @@ async function main() {
       unitPrice: '42000',
       imageUrl:
         'https://placehold.co/600x400?text=Indoor+Wi-Fi+Camera',
+      videoUrl: null,
       description:
         'Compact indoor camera with 1080p video, night vision, and motion alerts.',
     },
@@ -103,6 +110,7 @@ async function main() {
       unitPrice: '98000',
       imageUrl:
         'https://placehold.co/600x400?text=Outdoor+Bullet+Camera',
+      videoUrl: null,
       description:
         'Weatherproof 4MP PoE camera with IR night vision and mobile viewing, ideal for perimeters.',
     },
@@ -115,6 +123,7 @@ async function main() {
       unitPrice: '340000',
       imageUrl:
         'https://placehold.co/600x400?text=Gate+Motor+Kit',
+      videoUrl: null,
       description:
         'Complete sliding/swing gate automation kit with remote controls and safety sensors.',
     },
@@ -127,6 +136,7 @@ async function main() {
       unitPrice: '135000',
       imageUrl:
         'https://placehold.co/600x400?text=Staircase+Lighting+Kit',
+      videoUrl: null,
       description:
         'Step-by-step LED lighting kit with motion sensors for safe and dramatic stair illumination.',
     },
@@ -160,4 +170,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

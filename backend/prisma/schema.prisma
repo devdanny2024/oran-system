@@ -64,6 +64,7 @@ model Product {
   ourPrice     Decimal?
   description  String?
   imageUrl     String?
+  videoUrl     String?
   active       Boolean       @default(true)
   quoteItems   QuoteItem[]
   createdAt    DateTime      @default(now())
@@ -94,6 +95,11 @@ model Quote {
   title       String?
   currency    String       @default("NGN")
   subtotal    Decimal
+  installationFee Decimal  @default(0)
+  integrationFee  Decimal  @default(0)
+  logisticsCost   Decimal  @default(0)
+  miscellaneousFee Decimal @default(0)
+  taxAmount      Decimal   @default(0)
   total       Decimal
   isSelected  Boolean      @default(false)
   items       QuoteItem[]

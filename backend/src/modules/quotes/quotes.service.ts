@@ -4,6 +4,7 @@ import { PriceTier, ProductCategory } from '@prisma/client';
 import { AddQuoteItemDto } from './dto/add-quote-item.dto';
 import { UpdateQuoteItemDto } from './dto/update-quote-item.dto';
 import { AiService } from '../../infrastructure/ai/ai.service';
+import { computeQuoteFees } from '../../domain/pricing/quote-fees';
 
 interface GeneratedQuoteItemInput {
   productId: string | null;
@@ -184,16 +185,28 @@ export class QuotesService {
       throw new NotFoundException('Quote not found');
     }
 
-    const subtotal = quoteWithItems.items.reduce(
+    const subtotalNumber = quoteWithItems.items.reduce(
       (sum: number, item: any) => sum + Number(item.totalPrice),
       0,
     );
 
+    const totalDevices = quoteWithItems.items.reduce(
+      (sum: number, item: any) => sum + Number(item.quantity || 0),
+      0,
+    );
+
+    const fees = computeQuoteFees(subtotalNumber, totalDevices);
+
     const updated = await client.quote.update({
       where: { id: quoteId },
       data: {
-        subtotal,
-        total: subtotal,
+        subtotal: subtotalNumber,
+        installationFee: fees.installationFee,
+        integrationFee: fees.integrationFee,
+        logisticsCost: fees.logisticsCost,
+        miscellaneousFee: fees.miscellaneousFee,
+        taxAmount: fees.taxAmount,
+        total: fees.total,
       },
       include: { items: true },
     });
@@ -336,10 +349,15 @@ export class QuotesService {
         [PriceTier.STANDARD, standardItems] as const,
         [PriceTier.LUXURY, luxuryItems] as const,
       ]) {
-        const subtotal = items.reduce(
+        const subtotalNumber = items.reduce(
           (sum, item) => sum + item.unitPrice * item.quantity,
           0,
         );
+        const totalDevices = items.reduce(
+          (sum, item) => sum + item.quantity,
+          0,
+        );
+        const fees = computeQuoteFees(subtotalNumber, totalDevices);
 
         const quote = await tx.quote.create({
           data: {
@@ -352,8 +370,13 @@ export class QuotesService {
                 : tier === PriceTier.STANDARD
                   ? 'Standard automation package'
                   : 'Luxury automation package',
-            subtotal,
-            total: subtotal,
+            subtotal: subtotalNumber,
+            installationFee: fees.installationFee,
+            integrationFee: fees.integrationFee,
+            logisticsCost: fees.logisticsCost,
+            miscellaneousFee: fees.miscellaneousFee,
+            taxAmount: fees.taxAmount,
+            total: fees.total,
             currency: 'NGN',
             items: {
               create: items.map((item) => ({

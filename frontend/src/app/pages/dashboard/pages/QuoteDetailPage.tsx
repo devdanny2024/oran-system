@@ -5,6 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Separator } from '../../../components/ui/separator';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '../../../components/ui/tooltip';
 import { toast } from 'sonner';
 
 type QuoteItem = {
@@ -23,6 +28,11 @@ type Quote = {
   title?: string | null;
   currency: string;
   subtotal: number;
+  installationFee: number;
+  integrationFee: number;
+  logisticsCost: number;
+  miscellaneousFee: number;
+  taxAmount: number;
   total: number;
   isSelected: boolean;
   items: QuoteItem[];
@@ -36,7 +46,14 @@ export default function QuoteDetailPage() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<
-    { id: string; name: string; category: string }[]
+    {
+      id: string;
+      name: string;
+      category: string;
+      description?: string | null;
+      imageUrl?: string | null;
+      videoUrl?: string | null;
+    }[]
   >([]);
   const [dirtyQuantities, setDirtyQuantities] = useState<Record<string, number>>(
     {},
@@ -108,6 +125,9 @@ export default function QuoteDetailPage() {
           id: string;
           name: string;
           category: string;
+          description?: string | null;
+          imageUrl?: string | null;
+          videoUrl?: string | null;
         }[];
         setProducts(items);
       } catch {
@@ -297,12 +317,46 @@ export default function QuoteDetailPage() {
       </div>
 
       <Card className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">Summary</p>
-            <p className="text-lg font-semibold">
-              Total: ₦{quote.total.toLocaleString()}
+        <div className="flex items-center justify-between gap-6">
+          <div className="space-y-1 text-xs w-full max-w-md">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wide">
+              Pricing summary
             </p>
+            <div className="space-y-1">
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Devices subtotal</span>
+                <span className="font-medium">
+                  ₦{quote.subtotal.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Installation fee</span>
+                <span>₦{quote.installationFee.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Integration fee</span>
+                <span>₦{quote.integrationFee.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Logistics</span>
+                <span>₦{quote.logisticsCost.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Miscellaneous</span>
+                <span>₦{quote.miscellaneousFee.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Tax</span>
+                <span>₦{quote.taxAmount.toLocaleString()}</span>
+              </div>
+            </div>
+            <Separator className="my-2" />
+            <div className="flex justify-between items-baseline gap-4">
+              <span className="text-xs font-semibold">Grand total</span>
+              <span className="text-lg font-semibold">
+                ₦{quote.total.toLocaleString()}
+              </span>
+            </div>
           </div>
           <Button
             size="sm"
@@ -350,43 +404,88 @@ export default function QuoteDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {quote.items.map((item) => (
-                  <tr key={item.id} className="border-t">
-                    <td className="py-2 pr-4">{item.name}</td>
-                    <td className="py-2 pr-4 capitalize">
-                      {item.category.toLowerCase()}
-                    </td>
-                    <td className="py-2 pr-4">
-                      <input
-                        type="number"
-                        min={1}
-                        className="w-16 rounded-md border border-input bg-background px-1 py-0.5 text-xs"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          handleQuantityChange(
-                            item.id,
-                            Number(e.target.value) || 1,
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="py-2 pr-4">
-                      ₦{item.unitPrice.toLocaleString()}
-                    </td>
-                    <td className="py-2 pr-4">
-                      ₦{item.totalPrice.toLocaleString()}
-                    </td>
-                    <td className="py-2 text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRemoveItem(item.id)}
-                      >
-                        Remove
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {quote.items.map((item) => {
+                  const product = products.find((p) => p.name === item.name);
+                  const hasVideo = !!product?.videoUrl;
+                  const hasImage = !!product?.imageUrl;
+                  const hasMedia = hasVideo || hasImage;
+
+                  return (
+                    <tr key={item.id} className="border-t">
+                      <td className="py-2 pr-4">
+                        {hasMedia || product?.description ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button className="text-left underline-offset-2 hover:underline">
+                                {item.name}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <div className="max-w-xs space-y-2">
+                                <p className="font-semibold text-[11px]">
+                                  {product?.name ?? item.name}
+                                </p>
+                                {hasVideo && (
+                                  <video
+                                    src={product!.videoUrl!}
+                                    className="w-full max-h-40 rounded-md"
+                                    controls
+                                  />
+                                )}
+                                {!hasVideo && hasImage && (
+                                  <img
+                                    src={product!.imageUrl!}
+                                    alt={product?.name ?? item.name}
+                                    className="w-full max-h-40 rounded-md object-cover"
+                                  />
+                                )}
+                                {product?.description && (
+                                  <p className="text-[11px] leading-snug">
+                                    {product.description}
+                                  </p>
+                                )}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          item.name
+                        )}
+                      </td>
+                      <td className="py-2 pr-4 capitalize">
+                        {item.category.toLowerCase()}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <input
+                          type="number"
+                          min={1}
+                          className="w-16 rounded-md border border-input bg-background px-1 py-0.5 text-xs"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            handleQuantityChange(
+                              item.id,
+                              Number(e.target.value) || 1,
+                            )
+                          }
+                        />
+                      </td>
+                      <td className="py-2 pr-4">
+                        ₦{item.unitPrice.toLocaleString()}
+                      </td>
+                      <td className="py-2 pr-4">
+                        ₦{item.totalPrice.toLocaleString()}
+                      </td>
+                      <td className="py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRemoveItem(item.id)}
+                        >
+                          Remove
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
