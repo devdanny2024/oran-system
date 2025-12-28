@@ -1,11 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
+import { InviteTechnicianDto } from './dto/invite-technician.dto';
 import { TripStatus, UserRole } from '@prisma/client';
+import { EmailService } from '../../infrastructure/email/email.service';
+import * as bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 @Injectable()
 export class OperationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async createTrip(payload: CreateTripDto) {
     const project = await this.prisma.project.findUnique({
@@ -63,6 +70,60 @@ export class OperationsService {
     });
 
     return { items: technicians };
+  }
+
+  async inviteTechnician(payload: InviteTechnicianDto) {
+    const email = payload.email.trim().toLowerCase();
+    const name = payload.name?.trim();
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    let user;
+
+    if (!existing) {
+      const temporaryPassword = crypto.randomBytes(12).toString('hex');
+      const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          name,
+          passwordHash,
+          role: UserRole.TECHNICIAN,
+        },
+      });
+    } else {
+      user = await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          role: UserRole.TECHNICIAN,
+          name: name ?? existing.name,
+        },
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: token,
+        resetPasswordExpires: expires,
+      },
+    });
+
+    await this.emailService.sendTechnicianInviteEmail({
+      to: user.email,
+      name: user.name,
+      token,
+    });
+
+    return {
+      message: 'Technician invite sent (if email is deliverable).',
+    };
   }
 
   async checkIn(tripId: string) {

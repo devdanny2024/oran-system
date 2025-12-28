@@ -130,6 +130,27 @@ export class EmailService {
     });
   }
 
+  async sendTechnicianInviteEmail(params: {
+    to: string;
+    name?: string | null;
+    token: string;
+  }) {
+    const resetUrl = `${this.frontendBaseUrl}/reset-password?token=${encodeURIComponent(
+      params.token,
+    )}`;
+
+    const html = this.buildTechnicianInviteTemplate({
+      name: params.name,
+      resetUrl,
+    });
+
+    await this.sendEmail({
+      to: params.to,
+      subject: 'You have been invited as an ORAN technician',
+      html,
+    });
+  }
+
   private buildBaseTemplate(content: {
     title: string;
     intro: string;
@@ -250,6 +271,28 @@ export class EmailService {
       },
       footer:
         'If you did not request a password reset, please ignore this email and your password will remain unchanged.',
+    });
+  }
+
+  private buildTechnicianInviteTemplate(params: {
+    name?: string | null;
+    resetUrl: string;
+  }) {
+    const greetingName = params.name?.trim() || 'there';
+
+    return this.buildBaseTemplate({
+      title: 'Set up your ORAN technician account',
+      intro: `Hi ${greetingName}, you've been invited to join ORAN as a technician.`,
+      bodyLines: [
+        'We created a technician profile for you on the ORAN platform so you can receive site visits, record work progress and upload photos.',
+        'To get started, please choose a secure password for your account.',
+      ],
+      action: {
+        label: 'Create your password',
+        url: params.resetUrl,
+      },
+      footer:
+        'If you were not expecting this invite, you can safely ignore this email.',
     });
   }
 }
