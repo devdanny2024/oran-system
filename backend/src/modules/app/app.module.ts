@@ -9,6 +9,7 @@ import { ProductsModule } from '../products/products.module';
 import { OperationsModule } from '../operations/operations.module';
 import { QuotesModule } from '../quotes/quotes.module';
 import { AgreementsModule } from '../agreements/agreements.module';
+import { PaymentPlanModule } from '../payment-plan/payment-plan.module';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { AwsModule } from '../../infrastructure/aws/aws.module';
 import { CacheModule } from '../../infrastructure/cache/cache.module';
@@ -33,6 +34,7 @@ import { AiModule } from '../../infrastructure/ai/ai.module';
     OperationsModule,
     QuotesModule,
     AgreementsModule,
+    PaymentPlanModule,
   ],
   controllers: [AppController],
   providers: [AppService],

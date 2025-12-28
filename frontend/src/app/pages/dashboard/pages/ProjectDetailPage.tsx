@@ -69,6 +69,14 @@ export default function ProjectDetailPage() {
       acceptedAt?: string | null;
     }[]
   >([]);
+  const [paymentPlan, setPaymentPlan] = useState<{
+    id?: string;
+    type?: 'MILESTONE_3' | 'EIGHTY_TEN_TEN';
+  } | null>(null);
+  const [paymentPlanSelection, setPaymentPlanSelection] = useState<
+    'MILESTONE_3' | 'EIGHTY_TEN_TEN' | ''
+  >('');
+  const [savingPaymentPlan, setSavingPaymentPlan] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -140,6 +148,27 @@ export default function ProjectDetailPage() {
           }
         } catch {
           // best effort; ignore if not yet available
+        }
+
+        // Load any saved payment plan for this project.
+        try {
+          const resPlan = await fetch(
+            `/api/projects/${projectId}/payment-plan`,
+          );
+          const isJsonPlan =
+            resPlan.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const bodyPlan = isJsonPlan ? await resPlan.json() : await resPlan.text();
+          if (resPlan.ok && bodyPlan && typeof bodyPlan === 'object') {
+            setPaymentPlan(bodyPlan as any);
+            if ((bodyPlan as any).type) {
+              setPaymentPlanSelection((bodyPlan as any).type);
+            }
+          }
+        } catch {
+          // best effort; ignore failures here
         }
       } catch (error) {
         const message =
@@ -340,6 +369,146 @@ export default function ProjectDetailPage() {
               );
             })}
           </div>
+        )}
+      </Card>
+
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Payment plan</h2>
+          <span className="text-xs text-muted-foreground">
+            {project.status === 'PAYMENT_PLAN_SELECTED'
+              ? 'Payment plan selected'
+              : project.status === 'DOCUMENTS_SIGNED'
+                ? 'Choose your preferred payment style'
+                : 'Available after you accept all documents'}
+          </span>
+        </div>
+
+        {project.status !== 'DOCUMENTS_SIGNED' &&
+        project.status !== 'PAYMENT_PLAN_SELECTED' ? (
+          <p className="text-xs text-muted-foreground">
+            Once you have reviewed and accepted your project documents, you&apos;ll
+            be able to choose the payment style that works best for you here.
+          </p>
+        ) : (
+          <>
+            <div className="space-y-2 text-xs">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  className="mt-[3px]"
+                  name="payment-plan"
+                  value="MILESTONE_3"
+                  disabled={project.status !== 'DOCUMENTS_SIGNED' && project.status !== 'PAYMENT_PLAN_SELECTED'}
+                  checked={paymentPlanSelection === 'MILESTONE_3'}
+                  onChange={() => setPaymentPlanSelection('MILESTONE_3')}
+                />
+                <div>
+                  <p className="font-medium text-foreground">
+                    3 milestone payments
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Split your payment into three agreed milestones (for example:
+                    mobilisation, installation and final handover). Exact
+                    percentages can be customised later.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  className="mt-[3px]"
+                  name="payment-plan"
+                  value="EIGHTY_TEN_TEN"
+                  disabled={project.status !== 'DOCUMENTS_SIGNED' && project.status !== 'PAYMENT_PLAN_SELECTED'}
+                  checked={paymentPlanSelection === 'EIGHTY_TEN_TEN'}
+                  onChange={() => setPaymentPlanSelection('EIGHTY_TEN_TEN')}
+                />
+                <div>
+                  <p className="font-medium text-foreground">
+                    80 / 10 / 10 plan
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    80% on agreement, 10% during installation and 10% on
+                    completion. A good fit when you want most of the cost locked
+                    in up front but still keep some tied to delivery.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-[11px] text-muted-foreground">
+                By clicking &quot;I agree to this payment plan&quot; you confirm that
+                this payment style will govern how ORAN invoices you for this
+                project.
+              </p>
+              <Button
+                size="sm"
+                disabled={
+                  savingPaymentPlan ||
+                  !paymentPlanSelection ||
+                  project.status !== 'DOCUMENTS_SIGNED'
+                }
+                onClick={async () => {
+                  if (!paymentPlanSelection) {
+                    toast.error('Please select a payment style first.');
+                    return;
+                  }
+                  try {
+                    setSavingPaymentPlan(true);
+                    const res = await fetch(
+                      `/api/projects/${project.id}/payment-plan`,
+                      {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: paymentPlanSelection }),
+                      },
+                    );
+
+                    const isJson =
+                      res.headers
+                        .get('content-type')
+                        ?.toLowerCase()
+                        .includes('application/json') ?? false;
+                    const body = isJson ? await res.json() : await res.text();
+
+                    if (!res.ok) {
+                      const message =
+                        typeof body === 'string'
+                          ? body
+                          : body?.message ??
+                            'Unable to save payment plan. Please try again.';
+                      toast.error(message);
+                      return;
+                    }
+
+                    toast.success('Payment plan saved.');
+                    setPaymentPlan(body as any);
+                    setProject({
+                      ...project,
+                      status: 'PAYMENT_PLAN_SELECTED',
+                    });
+                  } catch (error) {
+                    const message =
+                      error instanceof Error
+                        ? error.message
+                        : 'Unable to save payment plan. Please try again.';
+                    toast.error(message);
+                  } finally {
+                    setSavingPaymentPlan(false);
+                  }
+                }}
+              >
+                {project.status === 'PAYMENT_PLAN_SELECTED'
+                  ? 'Payment plan selected'
+                  : savingPaymentPlan
+                    ? 'Saving...'
+                    : 'I agree to this payment plan'}
+              </Button>
+            </div>
+          </>
         )}
       </Card>
 
