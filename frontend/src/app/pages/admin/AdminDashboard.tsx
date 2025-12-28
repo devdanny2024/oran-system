@@ -14,12 +14,23 @@ type OranUser = {
   emailVerifiedAt?: string | null;
 };
 
+type Project = {
+  id: string;
+  name: string;
+  status: string;
+  buildingType: string | null;
+  roomsCount: number | null;
+  createdAt: string;
+};
+
 const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN'];
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<OranUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -50,6 +61,50 @@ export default function AdminDashboard() {
       setChecking(false);
     }
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadProjects = async () => {
+      try {
+        setProjectsLoading(true);
+        const res = await fetch('/api/projects');
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load projects.';
+          toast.error(message);
+          return;
+        }
+
+        const items = (body?.items ?? []) as Project[];
+        setProjects(items);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load projects. Please try again.';
+        toast.error(message);
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+
+    void loadProjects();
+  }, [user]);
+
+  const totalProjects = projects.length;
+  const onboardingProjects = projects.filter(
+    (p) => p.status === 'ONBOARDING',
+  ).length;
 
   if (checking || !user) {
     return (
@@ -99,13 +154,18 @@ export default function AdminDashboard() {
       <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Overview
-            </h1>
+            <h1 className="text-2xl font-bold text-foreground">Overview</h1>
             <p className="text-sm text-muted-foreground">
-              Quick view of ORAN projects and operations. We can plug real data here later.
+              Quick view of ORAN projects and operations.
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/technician')}
+          >
+            Open technician workspace
+          </Button>
         </div>
 
         <section className="grid gap-4 md:grid-cols-3">
@@ -113,19 +173,23 @@ export default function AdminDashboard() {
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               Projects
             </p>
-            <p className="text-2xl font-bold text-foreground">—</p>
+            <p className="text-2xl font-bold text-foreground">
+              {projectsLoading ? '…' : totalProjects || '0'}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Total active customer projects (hook to backend later).
+              Total customer projects captured via onboarding.
             </p>
           </Card>
 
           <Card className="p-4 space-y-2">
             <p className="text-xs font-semibold uppercase text-muted-foreground">
-              Site visits
+              Onboarding
             </p>
-            <p className="text-2xl font-bold text-foreground">—</p>
+            <p className="text-2xl font-bold text-foreground">
+              {projectsLoading ? '…' : onboardingProjects || '0'}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Upcoming inspections and technician trips.
+              Projects currently in the onboarding phase.
             </p>
           </Card>
 
@@ -133,9 +197,7 @@ export default function AdminDashboard() {
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               System status
             </p>
-            <p className="text-sm font-medium text-emerald-600">
-              Healthy
-            </p>
+            <p className="text-sm font-medium text-emerald-600">Healthy</p>
             <p className="text-xs text-muted-foreground">
               Backend on EC2 + Postgres are online.
             </p>
@@ -144,31 +206,56 @@ export default function AdminDashboard() {
 
         <Separator />
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <Card className="p-4 flex flex-col justify-between">
-            <div>
-              <h2 className="text-sm font-semibold mb-1">
-                Technician workspace
-              </h2>
-              <p className="text-xs text-muted-foreground mb-3">
-                Future home for trip assignments, check-in/out, and photo uploads.
-              </p>
+        <section className="grid gap-4 md:grid-cols-2 items-start">
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-semibold mb-1">Recent projects</h2>
+                <p className="text-xs text-muted-foreground">
+                  Latest items from the projects API.
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {projectsLoading ? 'Loading…' : `${projects.length} total`}
+              </span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="self-start"
-              disabled
-            >
-              Coming soon
-            </Button>
+            <div className="border rounded-md divide-y">
+              {projects.length === 0 && !projectsLoading ? (
+                <div className="p-3 text-xs text-muted-foreground">
+                  No projects yet. Complete onboarding as a customer to see them here.
+                </div>
+              ) : (
+                projects.slice(0, 5).map((project) => (
+                  <div
+                    key={project.id}
+                    className="p-3 text-xs flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground text-sm">
+                        {project.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {project.buildingType || 'Unknown type'} ·{' '}
+                        {project.roomsCount ?? 0} rooms
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {project.status.toLowerCase().replace(/_/g, ' ')}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </Card>
 
           <Card className="p-4 flex flex-col justify-between">
             <div>
-              <h2 className="text-sm font-semibold mb-1">
-                Admin tools
-              </h2>
+              <h2 className="text-sm font-semibold mb-1">Admin tools</h2>
               <p className="text-xs text-muted-foreground mb-3">
                 Future controls for product catalog, pricing, and approvals.
               </p>
