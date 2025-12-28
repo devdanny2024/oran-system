@@ -8,7 +8,7 @@ This document tracks what has been implemented so far across backend, frontend, 
 
 - **Core framework & infrastructure**
   - NestJS app bootstrapped with `AppModule`, health endpoint (`GET /health`), and modular structure (`Auth`, `Projects`, `Onboarding`, `Products`, `Operations`, `Email`).
-  - Prisma configured against Postgres (`oran_dev` DB on EC2), with schema for `User`, `Project`, `OnboardingSession`, `Product`, and `Trip`.
+  - Prisma configured against Postgres (`oran_dev` DB on EC2), with schema for `User`, `Project`, `OnboardingSession`, `Product`, `Quote`, `QuoteItem`, and `Trip`.
   - Configured Redis client (currently optional; Redis not yet provisioned in infra).
 
 - **Authentication & users**
@@ -34,11 +34,12 @@ This document tracks what has been implemented so far across backend, frontend, 
   - `OnboardingModule`:
     - `POST /onboarding` – create/update onboarding session tied to a project.
     - `GET /onboarding/:projectId` – fetch onboarding session.
+    - Onboarding payload now also captures `siteAddress` (used for logistics in quotes) and `contactPhone` for operations.
   - `ProductsModule`:
-    - `GET /products` – list products.
+    - `GET /products` – list products (including `description`, `imageUrl`, optional `videoUrl`).
     - `POST /products` – create product (admin).
     - `GET /products/:id` – product detail.
-  - Onboarding model supports inspection preference fields and selected features list.
+  - Onboarding model supports inspection preference fields, selected features list, and site details.
 
 - **Operations (admin + technician)**
   - `Trip` model added and wired via `OperationsModule`:
@@ -50,6 +51,24 @@ This document tracks what has been implemented so far across backend, frontend, 
     - `GET /operations/technicians` – list technicians, returns `resetPasswordToken`/`resetPasswordExpires` so the UI can see pending invites.
     - `POST /operations/technicians/invite` – create/update a user as `TECHNICIAN`, generate reset token + expiry, send invite email so they can set password.
     - `POST /operations/technicians/revoke` – clear `resetPasswordToken` and `resetPasswordExpires` for a technician to revoke an invite.
+
+- **Quotes & AI pricing**
+  - `QuotesModule`:
+    - `GET /quotes/project/:projectId` – list Economy/Standard/Luxury quotes for a project.
+    - `GET /quotes/:id` – quote detail (with items).
+    - `POST /quotes/generate` and `POST /quotes/generate/:projectId` – generate quotes for a project.
+    - `PATCH /quotes/:id/select` – mark a quote as selected and update project status.
+    - `POST /quotes/:id/items` / `PATCH` / `DELETE` – add/update/remove items and recalculate totals.
+  - Google Gemini (2.5 Flash) wired via `AiService` to propose product quantities per tier using project rooms, features and the seeded product catalog.
+  - Deterministic fallback generator keeps working if Gemini returns invalid JSON or hits rate/other errors.
+  - Fee model implemented for:
+    - Installation (per-device).
+    - Integration (percentage of devices subtotal).
+    - Logistics as **per-trip** cost:
+      - Lagos: 50k / trip, near‑west states (Osun, Ogun, Ibadan, Oyo, Ondo, Ekiti, Kwara): 60k / trip, others: 100k / trip.
+      - Trips scale with project size (rooms) with a baseline of 4 and more for large homes.
+    - Miscellaneous buffer and tax.
+  - All quotes persist `subtotal`, `installationFee`, `integrationFee`, `logisticsCost`, `miscellaneousFee`, `taxAmount`, and `total`.
 
 - **Email system**
   - `EmailModule` and `EmailService` implemented using SMTP (Gmail app password on EC2):
@@ -68,7 +87,7 @@ This document tracks what has been implemented so far across backend, frontend, 
 
 - Harden auth (refresh tokens or better session model, rate limiting).
 - Add role-based guards on all protected routes (decorators + guards).
-- Implement full payment, wallet, and AI quote modules.
+- Implement full payment and wallet modules and connect them to selected quotes.
 - Add stricter validation DTOs and error handling across modules.
 
 ---
@@ -78,7 +97,7 @@ This document tracks what has been implemented so far across backend, frontend, 
 - **Global setup**
   - Next.js 14 App Router, TypeScript, Tailwind + Shadcn UI.
   - Public marketing and onboarding flows already live on `https://oran-system.vercel.app`.
-  - `NEXT_PUBLIC_API_BASE_URL` wired so `/app/api/*` routes proxy from Vercel to the EC2 backend.
+  - `BACKEND_API_BASE_URL` / `NEXT_PUBLIC_API_BASE_URL` wired so `/app/api/*` routes proxy from Vercel to the EC2 backend.
 
 - **Auth and user flows**
   - Pages:
@@ -95,13 +114,24 @@ This document tracks what has been implemented so far across backend, frontend, 
   - Dashboard-level banner:
     - Shows “Your email is not verified yet” using `emailVerifiedAt` and encourages user to verify; hidden once `emailVerifiedAt` is set.
 
-- **Customer dashboard & projects**
+- **Customer dashboard, projects & quotes**
   - `/dashboard` – main customer landing (shell).
   - `/dashboard/projects` – lists projects for the logged-in user:
     - Uses `/api/projects` (proxy to backend) and filters by `userId`.
     - Supports simple filter (All / Active / Completed / Onboarding) and sort options.
   - `/dashboard/projects/[id]` – project detail:
-    - Fetches `/api/projects/:id` and shows project info plus onboarding selections and summary.
+    - Fetches `/api/projects/:id` and shows project info, onboarding selections (including stair steps, site address, contact phone), and summary.
+    - Shows a “Quotes for this project” section listing Economy/Standard/Luxury quotes with:
+      - Devices subtotal.
+      - Total labelled as “incl. fees & tax”.
+      - A short note that installation, integration, logistics, miscellaneous and tax are included.
+    - `View & edit quote` CTA opens `/dashboard/quotes/[id]`.
+  - `/dashboard/quotes/[id]` – quote detail:
+    - Loads quote via `/api/quotes/:id` and products via `/api/products`.
+    - Renders full pricing breakdown: devices subtotal, installation, integration, logistics, miscellaneous, tax, and grand total.
+    - Allows editing quantities and adding/removing line items with server-side recalculation.
+    - On hover/tap of an item name, shows a tooltip with the product’s description and image/video when configured.
+    - “Choose this quote” marks it as selected and updates the project status.
 
 - **Admin area**
   - `app/admin/layout.tsx`:
@@ -245,4 +275,3 @@ Use the admin account `soliupeter@gmail.com` with password `Oran12#` (already cr
 5. **Security, roles, and permissions**
    - Harden role-based access in Nest using guards.
    - Add rate-limiting for auth and sensitive endpoints.
-

@@ -275,13 +275,16 @@ export default function ProjectDetailPage() {
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-semibold">
-                  <span>Total</span>
+                  <span>Total (incl. fees & tax)</span>
                   <span className="text-primary">
                     ₦{quote.total.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-[11px] text-muted-foreground">
-                  <span>{quote.items.length} items</span>
+                  <span>
+                    {quote.items.length} items · installation, integration,
+                    logistics, misc & tax included
+                  </span>
                   {quote.isSelected && <span>Selected</span>}
                 </div>
                 <Button

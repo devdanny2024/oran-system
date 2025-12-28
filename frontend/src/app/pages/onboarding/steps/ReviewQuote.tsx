@@ -188,6 +188,8 @@ export default function ReviewQuote({ data }: Props) {
               <p className="text-xs text-muted-foreground">
                 Pick a starting point now. You can still open the quote afterwards to
                 adjust quantities, remove items or add extra products before we finalize.
+                All totals already include installation, integration, logistics,
+                miscellaneous costs and tax based on the devices in the package.
               </p>
               <div className="grid gap-4 md:grid-cols-3">
                 {quotes.map((quote) => (
