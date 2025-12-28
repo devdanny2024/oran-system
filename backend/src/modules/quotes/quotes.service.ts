@@ -195,7 +195,10 @@ export class QuotesService {
       0,
     );
 
-    const fees = computeQuoteFees(subtotalNumber, totalDevices);
+    const locationHint =
+      (quoteWithItems as any).project?.onboarding?.siteAddress ?? null;
+
+    const fees = computeQuoteFees(subtotalNumber, totalDevices, locationHint);
 
     const updated = await client.quote.update({
       where: { id: quoteId },
@@ -208,7 +211,7 @@ export class QuotesService {
         taxAmount: fees.taxAmount,
         total: fees.total,
       },
-      include: { items: true },
+      include: { items: true, project: { include: { onboarding: true } } },
     });
 
     return updated;
@@ -357,7 +360,12 @@ export class QuotesService {
           (sum, item) => sum + item.quantity,
           0,
         );
-        const fees = computeQuoteFees(subtotalNumber, totalDevices);
+        const locationHint = project.onboarding?.siteAddress ?? null;
+        const fees = computeQuoteFees(
+          subtotalNumber,
+          totalDevices,
+          locationHint,
+        );
 
         const quote = await tx.quote.create({
           data: {

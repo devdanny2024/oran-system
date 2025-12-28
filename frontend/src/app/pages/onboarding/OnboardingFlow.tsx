@@ -7,6 +7,7 @@ import ProjectStatus from './steps/ProjectStatus';
 import BuildingType from './steps/BuildingType';
 import RoomCount from './steps/RoomCount';
 import FeatureSelection from './steps/FeatureSelection';
+import SiteDetails from './steps/SiteDetails';
 import ReviewQuote from './steps/ReviewQuote';
 import { postJson } from '../../lib/api';
 import { toast } from 'sonner';
@@ -26,7 +27,7 @@ export interface OnboardingData {
 export default function OnboardingFlow() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 5;
+  const totalSteps = 6;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -200,7 +201,8 @@ export default function OnboardingFlow() {
           {currentStep === 2 && <BuildingType data={data} updateData={updateData} />}
           {currentStep === 3 && <RoomCount data={data} updateData={updateData} />}
           {currentStep === 4 && <FeatureSelection data={data} updateData={updateData} />}
-          {currentStep === 5 && <ReviewQuote data={data} updateData={updateData} />}
+          {currentStep === 5 && <SiteDetails data={data} updateData={updateData} />}
+          {currentStep === 6 && <ReviewQuote data={data} updateData={updateData} />}
         </div>
 
         {/* Navigation */}
