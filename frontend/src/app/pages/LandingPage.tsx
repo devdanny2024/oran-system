@@ -1,3 +1,8 @@
+/* eslint-disable jsx-a11y/media-has-caption */
+'use client';
+
+import type { MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '../components/ui/button';
@@ -5,19 +10,79 @@ import { Card } from '../components/ui/card';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from '../components/ui/dialog';
-import { Play, Lightbulb, DollarSign, Users, TrendingUp, Home, Building2, Check } from 'lucide-react';
+import {
+  Lightbulb,
+  DollarSign,
+  Users,
+  TrendingUp,
+  Home,
+  Building2,
+  Check,
+  ChevronDown,
+} from 'lucide-react';
 
 const demoVideos = [
   { src: '/video/eko.mp4', title: 'Eko Smart Home' },
   { src: '/video/periwinkle.mp4', title: 'Periwinkle Smart Home' },
 ];
 
+const infiniteVideos = [...demoVideos, ...demoVideos, ...demoVideos];
+
 export default function LandingPage() {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [demoOpen, setDemoOpen] = useState(false);
+
+  useEffect(() => {
+    if (!demoOpen) return;
+    if (typeof window === 'undefined') return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const itemHeight = window.innerHeight;
+    container.scrollTop = itemHeight * demoVideos.length;
+  }, [demoOpen]);
+
+  useEffect(() => {
+    if (!demoOpen) return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const videos = container.querySelectorAll('video');
+    videos.forEach((video) => {
+      video
+        .play()
+        .catch(() => {
+          // Autoplay might be blocked; ignore errors.
+        });
+    });
+  }, [demoOpen]);
+
+  const handleScroll = () => {
+    if (typeof window === 'undefined') return;
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const itemHeight = window.innerHeight;
+    const blockSize = demoVideos.length * itemHeight;
+    const middleStart = blockSize;
+    const middleEnd = blockSize * 2;
+
+    if (container.scrollTop < middleStart - itemHeight) {
+      container.scrollTop += blockSize;
+    } else if (container.scrollTop > middleEnd + itemHeight) {
+      container.scrollTop -= blockSize;
+    }
+  };
+
+  const handleVideoClick = (event: MouseEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    if (video.paused) {
+      void video.play();
+    } else {
+      video.pause();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -64,41 +129,40 @@ export default function LandingPage() {
                 <Link href="/signup">
                   <Button size="lg" className="w-full sm:w-auto">Get Started</Button>
                 </Link>
-                <Dialog>
+                <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
                   <DialogTrigger asChild>
                     <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                      <Play className="mr-2 h-5 w-5" />
                       Watch Demo
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="w-full max-w-sm sm:max-w-md md:max-w-xl max-h-[90vh] p-0 bg-black text-white overflow-hidden">
-                    <div className="flex flex-col h-full">
-                      <DialogHeader className="px-4 pt-4 pb-2">
-                        <DialogTitle className="text-white text-lg">ORAN Smart Home Demo</DialogTitle>
-                        <DialogDescription className="text-gray-300 text-sm">
-                          Scroll vertically to explore our demo videos.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="px-0 pb-4">
-                        <div className="h-[70vh] overflow-y-auto snap-y snap-mandatory">
-                          {demoVideos.map((video) => (
-                            <div
-                              key={video.src}
-                              className="h-[70vh] flex flex-col items-center justify-center snap-start"
-                            >
-                              <div className="w-full h-full flex items-center justify-center">
-                                <video
-                                  src={video.src}
-                                  controls
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              <div className="w-full px-4 py-2 bg-gradient-to-t from-black/80 to-transparent text-left">
-                                <p className="text-sm font-semibold">{video.title}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                  <DialogContent className="w-full max-w-none h-screen p-0 bg-transparent text-white overflow-hidden border-none rounded-none">
+                    <div className="relative w-full h-full">
+                      <div
+                        ref={scrollRef}
+                        onScroll={handleScroll}
+                        className="h-full overflow-y-auto snap-y snap-mandatory"
+                      >
+                        {infiniteVideos.map((video, index) => (
+                          <div
+                            // eslint-disable-next-line react/no-array-index-key
+                            key={`${video.src}-${index}`}
+                            className="h-screen flex flex-col items-center justify-center snap-start"
+                          >
+                            <video
+                              src={video.src}
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              onClick={handleVideoClick}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce">
+                        <ChevronDown className="h-6 w-6 mb-1" />
+                        <span>Scroll for more</span>
                       </div>
                     </div>
                   </DialogContent>
