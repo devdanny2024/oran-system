@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import {
   Lightbulb,
   DollarSign,
@@ -23,11 +24,22 @@ import {
   Building2,
   Check,
   ChevronDown,
+  MapPin,
 } from 'lucide-react';
 
 const demoVideos = [
-  { src: '/video/eko.mp4', title: 'Eko Smart Home' },
-  { src: '/video/periwinkle.mp4', title: 'Periwinkle Smart Home' },
+  {
+    src: '/video/eko.mp4',
+    title: 'Eko Smart Home',
+    cost: 'N5,600,000',
+    location: 'Eko Atlantic, Lagos',
+  },
+  {
+    src: '/video/periwinkle.mp4',
+    title: 'Periwinkle Smart Home',
+    cost: 'N5,600,000',
+    location: 'Eko Atlantic, Lagos',
+  },
 ];
 
 export default function LandingPage() {
@@ -216,6 +228,36 @@ export default function LandingPage() {
                             />
                           </div>
                         )}
+                        <div className="pointer-events-auto absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-xs md:text-sm text-white border border-white/10 transition-transform transition-colors hover:bg-black/80 hover:scale-105"
+                              >
+                                <DollarSign className="h-4 w-4 text-primary" />
+                                <span>Cost</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              Cost - {demoVideos[activeIndex]?.cost}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-xs md:text-sm text-white border border-white/10 transition-transform transition-colors hover:bg-black/80 hover:scale-105"
+                              >
+                                <MapPin className="h-4 w-4 text-primary" />
+                                <span>Location</span>
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              Location - {demoVideos[activeIndex]?.location}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       </div>
                       <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce z-10">
                         <ChevronDown className="h-6 w-6 mb-1" />
