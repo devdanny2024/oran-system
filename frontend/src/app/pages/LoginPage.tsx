@@ -55,13 +55,20 @@ export default function LoginPage() {
       return;
     }
 
+    const { user, token } = result.data;
+
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('oran_token', result.data.token);
-      window.localStorage.setItem('oran_user', JSON.stringify(result.data.user));
+      window.localStorage.setItem('oran_token', token);
+      window.localStorage.setItem('oran_user', JSON.stringify(user));
     }
 
     toast.success('Login successful!');
-    router.push('/dashboard');
+
+    if (user.role === 'ADMIN' || user.role === 'TECHNICIAN') {
+      router.push('/admin');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   return (
