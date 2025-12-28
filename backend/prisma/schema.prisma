@@ -35,6 +35,8 @@ model Project {
   onboarding  OnboardingSession?
   trips       Trip[]
   quotes      Quote[]
+  agreements  ProjectAgreement[] @relation("ProjectAgreements")
+  paymentPlan PaymentPlan?       @relation("ProjectPaymentPlan")
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
@@ -123,7 +125,7 @@ model QuoteItem {
 
 model ProjectAgreement {
   id                     String          @id @default(cuid())
-  project                Project         @relation(fields: [projectId], references: [id])
+  project                Project         @relation("ProjectAgreements", fields: [projectId], references: [id])
   projectId              String
   type                   AgreementType
   title                  String
@@ -133,6 +135,15 @@ model ProjectAgreement {
   acceptedDeviceSignature String?
   createdAt              DateTime        @default(now())
   updatedAt              DateTime        @updatedAt
+}
+
+model PaymentPlan {
+  id         String           @id @default(cuid())
+  project    Project          @relation("ProjectPaymentPlan", fields: [projectId], references: [id])
+  projectId  String           @unique
+  type       PaymentPlanType
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 }
 
 enum UserRole {
@@ -187,4 +198,9 @@ enum AgreementType {
   MAINTENANCE
   SCOPE_OF_WORK
   PAYMENT_TERMS
+}
+
+enum PaymentPlanType {
+  MILESTONE_3
+  EIGHTY_TEN_TEN
 }
