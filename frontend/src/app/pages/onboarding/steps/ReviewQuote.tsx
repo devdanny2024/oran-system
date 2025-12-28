@@ -65,15 +65,22 @@ export default function ReviewQuote({ data }: Props) {
       }
 
       try {
-        const res = await postJson<{ items: Quote[] }, never>(
-          `/quotes/project/${projectId}` as '/quotes/project/${string}',
-          undefined as never,
-        );
+        const res = await fetch(`/api/quotes/project/${projectId}`);
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
 
         if (!res.ok) {
-          toast.error(res.error || 'Unable to load quotes yet.');
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load quotes yet.';
+          toast.error(message);
         } else {
-          setQuotes(res.data.items);
+          setQuotes((body?.items ?? []) as Quote[]);
         }
       } catch (error) {
         const message =
