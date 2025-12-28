@@ -54,6 +54,8 @@ export class AiService {
     const prompt = this.buildPrompt(input);
 
     try {
+      // eslint-disable-next-line no-console
+      console.log('[AiService] Calling Gemini model', this.model);
       const res = await fetch(`${endpoint}?key=${encodeURIComponent(this.apiKey)}`, {
         method: 'POST',
         headers: {
@@ -74,7 +76,11 @@ export class AiService {
 
       if (!res.ok) {
         // eslint-disable-next-line no-console
-        console.error('[AiService] Gemini request failed', res.status, await res.text());
+        console.error(
+          '[AiService] Gemini request failed',
+          res.status,
+          await res.text(),
+        );
         return null;
       }
 
@@ -86,6 +92,9 @@ export class AiService {
       if (!text || typeof text !== 'string') {
         return null;
       }
+
+      // eslint-disable-next-line no-console
+      console.log('[AiService] Gemini raw response text', text);
 
       const parsed = JSON.parse(text) as QuotePlan;
       if (!parsed.economy || !parsed.standard || !parsed.luxury) {
@@ -175,4 +184,3 @@ Rules:
 `;
   }
 }
-

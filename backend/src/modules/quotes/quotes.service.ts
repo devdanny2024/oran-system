@@ -226,7 +226,8 @@ export class QuotesService {
       );
     }
 
-    // Prefer Gemini-generated plan when available
+    // Prefer Gemini-generated plan when available.
+    // For debugging, we currently require a Gemini plan and do not fall back.
     const aiPlan = await this.ai.generateQuotePlan({
       project: {
         roomsCount: project.roomsCount,
@@ -251,6 +252,10 @@ export class QuotesService {
       })),
     });
 
+    if (!aiPlan) {
+      throw new Error('Gemini quote plan failed; no plan returned.');
+    }
+
     const rooms =
       project.roomsCount && project.roomsCount > 0 ? project.roomsCount : 1;
 
@@ -261,38 +266,32 @@ export class QuotesService {
 
     const stairSteps = project.onboarding?.stairSteps ?? null;
 
-    const economyItems =
-      aiPlan?.economy && aiPlan.economy.length
-        ? this.mapAiItemsToGenerated(products, aiPlan.economy)
-        : this.buildTierItems(
-            products,
-            PriceTier.ECONOMY,
-            rooms,
-            selectedFeatures,
-            stairSteps,
-          );
+    const economyItems = this.mapAiItemsToGenerated(
+      products,
+      aiPlan.economy,
+      rooms,
+      selectedFeatures,
+      stairSteps,
+      PriceTier.ECONOMY,
+    );
 
-    const standardItems =
-      aiPlan?.standard && aiPlan.standard.length
-        ? this.mapAiItemsToGenerated(products, aiPlan.standard)
-        : this.buildTierItems(
-            products,
-            PriceTier.STANDARD,
-            rooms,
-            selectedFeatures,
-            stairSteps,
-          );
+    const standardItems = this.mapAiItemsToGenerated(
+      products,
+      aiPlan.standard,
+      rooms,
+      selectedFeatures,
+      stairSteps,
+      PriceTier.STANDARD,
+    );
 
-    const luxuryItems =
-      aiPlan?.luxury && aiPlan.luxury.length
-        ? this.mapAiItemsToGenerated(products, aiPlan.luxury)
-        : this.buildTierItems(
-            products,
-            PriceTier.LUXURY,
-            rooms,
-            selectedFeatures,
-            stairSteps,
-          );
+    const luxuryItems = this.mapAiItemsToGenerated(
+      products,
+      aiPlan.luxury,
+      rooms,
+      selectedFeatures,
+      stairSteps,
+      PriceTier.LUXURY,
+    );
 
     const created = await this.prisma.$transaction(async (tx: any) => {
       // Optional: clear old GENERATED quotes so the list stays tidy
@@ -486,14 +485,83 @@ export class QuotesService {
       unitPrice: any;
     }>,
     aiItems: { productId: string; quantity: number }[],
+    rooms: number,
+    selectedFeatures: string[],
+    stairSteps: number | null,
+    tier: PriceTier,
   ): GeneratedQuoteItemInput[] {
     const items: GeneratedQuoteItemInput[] = [];
+
+    const featureSet = new Set(selectedFeatures);
+
+    const featureToCategory: Record<string, ProductCategory> = {
+      lighting: ProductCategory.LIGHTING,
+      climate: ProductCategory.CLIMATE,
+      surveillance: ProductCategory.SURVEILLANCE,
+      access: ProductCategory.ACCESS,
+      gate: ProductCategory.GATE,
+      staircase: ProductCategory.STAIRCASE,
+    };
+
+    const allowedCategories = new Set<ProductCategory>();
+
+    if (featureSet.size === 0) {
+      Object.values(ProductCategory).forEach((cat) =>
+        allowedCategories.add(cat),
+      );
+    } else {
+      for (const feature of featureSet) {
+        const mapped = featureToCategory[feature];
+        if (mapped) {
+          allowedCategories.add(mapped);
+        }
+      }
+    }
 
     for (const aiItem of aiItems) {
       const product = products.find((p) => p.id === aiItem.productId);
       if (!product) continue;
+      if (!allowedCategories.has(product.category)) continue;
 
-      const quantity = aiItem.quantity > 0 ? aiItem.quantity : 1;
+      let quantity = aiItem.quantity > 0 ? aiItem.quantity : 1;
+
+      // Guardrails: enforce rough scaling by category+tier even if Gemini gives odd numbers.
+      if (product.category === ProductCategory.LIGHTING) {
+        const min =
+          tier === PriceTier.ECONOMY
+            ? Math.max(rooms * 1, 2)
+            : tier === PriceTier.STANDARD
+              ? Math.max(rooms * 2, 4)
+              : Math.max(rooms * 3, 6);
+        if (quantity < min) quantity = min;
+      } else if (product.category === ProductCategory.SURVEILLANCE) {
+        const min =
+          tier === PriceTier.ECONOMY
+            ? Math.max(Math.ceil(rooms / 3), 1)
+            : tier === PriceTier.STANDARD
+              ? Math.max(Math.ceil(rooms / 2), 2)
+              : Math.max(rooms, 3);
+        if (quantity < min) quantity = min;
+      } else if (product.category === ProductCategory.CLIMATE) {
+        const min =
+          tier === PriceTier.ECONOMY
+            ? Math.max(Math.ceil(rooms / 2), 1)
+            : Math.max(rooms, 1);
+        if (quantity < min) quantity = min;
+      } else if (product.category === ProductCategory.ACCESS) {
+        const min =
+          tier === PriceTier.ECONOMY
+            ? 1
+            : tier === PriceTier.STANDARD
+              ? 2
+              : 3;
+        if (quantity < min) quantity = min;
+      } else if (product.category === ProductCategory.GATE) {
+        if (quantity < 1) quantity = 1;
+      } else if (product.category === ProductCategory.STAIRCASE) {
+        if (!stairSteps || stairSteps <= 0) continue;
+        if (quantity < 1) quantity = 1;
+      }
 
       items.push({
         productId: product.id,
