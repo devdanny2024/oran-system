@@ -53,19 +53,29 @@ export class EmailService {
   private async sendEmail(options: SendEmailOptions) {
     if (!this.transporter) {
       // eslint-disable-next-line no-console
-      console.log('[EmailService] Mock email:', {
+      console.log('[EmailService] Mock email (no SMTP configured):', {
         from: this.fromAddress,
         ...options,
       });
       return;
     }
 
-    await this.transporter.sendMail({
-      from: this.fromAddress,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-    });
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
+      });
+    } catch (error) {
+      // Do not crash user-facing flows if email delivery fails.
+      // eslint-disable-next-line no-console
+      console.error('[EmailService] Failed to send email', {
+        error,
+        to: options.to,
+        subject: options.subject,
+      });
+    }
   }
 
   async sendVerificationEmail(params: {
@@ -243,4 +253,3 @@ export class EmailService {
     });
   }
 }
-

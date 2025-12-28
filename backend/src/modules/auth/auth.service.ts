@@ -37,7 +37,9 @@ export class AuthService {
   private signToken(user: {
     id: string;
     email: string;
+    name?: string | null;
     role: string;
+    emailVerifiedAt?: Date | null;
   }) {
     const { secret, expiresIn } = this.getJwtConfig();
 
@@ -45,7 +47,9 @@ export class AuthService {
       {
         sub: user.id,
         email: user.email,
+        name: user.name,
         role: user.role,
+        emailVerifiedAt: user.emailVerifiedAt,
       },
       secret as jwt.Secret,
       { expiresIn } as SignOptions,
@@ -57,12 +61,14 @@ export class AuthService {
     email: string;
     name: string | null;
     role: string;
+    emailVerifiedAt?: Date | null;
   }) {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+      emailVerifiedAt: user.emailVerifiedAt ?? null,
     };
   }
 

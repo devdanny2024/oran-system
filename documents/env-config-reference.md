@@ -7,7 +7,7 @@
 
 - `PORT=4000`
 - `NODE_ENV=development`
-- `DATABASE_URL=postgresql://ec2-user@localhost:5432/oran_dev`
+- `DATABASE_URL=postgresql://oran_user:oran_pass_123@localhost:5432/oran_dev`
 - `REDIS_URL=redis://localhost:6379/0`
 - `AWS_REGION=eu-west-1`
 - `AWS_ACCESS_KEY_ID=oran-local-access-key-2d8f9c7a`
