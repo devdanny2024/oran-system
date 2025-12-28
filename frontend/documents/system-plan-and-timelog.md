@@ -647,6 +647,12 @@ Assuming a ~16-week window as in PRD.
   - Configured SMTP via Resend using SMTP host/user/pass; added EmailService logic so SMTP errors (e.g. unverified domain or test-mode restrictions) are logged but do not break user-facing requests like registration.
   - Installed and configured PM2 on EC2 to run the Nest backend as `oran-backend` on port `4000`, enabled PM2 startup via systemd, and verified `/health` stays green across restarts.
 
+- **2025-12-28 (Onboarding, projects/products, admin shell)**
+  - Implemented real `ProjectsService`, `OnboardingService`, and `ProductsService` in the Nest backend using Prisma and Postgres, including `OnboardingSession.selectedFeatures` and `stairSteps` fields.
+  - Added Next.js API routes for `/api/projects`, `/api/onboarding`, and `/api/products` that proxy to the EC2 backend.
+  - Wired the multi-step onboarding flow to create a `Project` and upsert `OnboardingSession` on the final step, with toasts and error handling.
+  - Introduced an `/admin` page in the frontend that is only accessible to users with `ADMIN` or `TECHNICIAN` roles (checked from `oran_user` in `localStorage`) and shows a simple admin/technician overview shell we can extend later.
+
 ### Remaining work vs. plan
 
 - **Phase 1 (Planning & Foundations)**
