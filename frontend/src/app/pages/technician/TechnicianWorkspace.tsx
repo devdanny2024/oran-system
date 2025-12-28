@@ -15,10 +15,24 @@ type OranUser = {
 
 const ALLOWED_ROLES = ['TECHNICIAN', 'ADMIN'];
 
+type TripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
+type Trip = {
+  id: string;
+  status: TripStatus;
+  scheduledFor: string;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
+  notes?: string | null;
+  projectId: string;
+};
+
 export default function TechnicianWorkspace() {
   const router = useRouter();
   const [user, setUser] = useState<OranUser | null>(null);
   const [checking, setChecking] = useState(true);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -49,6 +63,75 @@ export default function TechnicianWorkspace() {
       setChecking(false);
     }
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadTrips = async () => {
+      try {
+        setLoadingTrips(true);
+        const res = await fetch(
+          `/api/operations/trips?technicianId=${encodeURIComponent(user.id)}`,
+        );
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load trips.';
+          toast.error(message);
+          return;
+        }
+
+        const items = (body?.items ?? []) as Trip[];
+        setTrips(items);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load trips. Please try again.';
+        toast.error(message);
+      } finally {
+        setLoadingTrips(false);
+      }
+    };
+
+    void loadTrips();
+  }, [user]);
+
+  const today = new Date();
+  const isSameDay = (iso?: string | null) => {
+    if (!iso) return false;
+    const d = new Date(iso);
+    return (
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate()
+    );
+  };
+
+  const assignedTrips = trips.filter(
+    (t) => t.status === 'SCHEDULED' || t.status === 'IN_PROGRESS',
+  );
+  const inProgressTrips = trips.filter((t) => t.status === 'IN_PROGRESS');
+  const completedTodayTrips = trips.filter(
+    (t) => t.status === 'COMPLETED' && isSameDay(t.checkOutAt ?? t.checkInAt),
+  );
+
+  const upcomingTrips = trips
+    .filter((t) => t.status === 'SCHEDULED' || t.status === 'IN_PROGRESS')
+    .sort(
+      (a, b) =>
+        new Date(a.scheduledFor).getTime() -
+        new Date(b.scheduledFor).getTime(),
+    )
+    .slice(0, 5);
 
   if (checking || !user) {
     return (
@@ -100,7 +183,9 @@ export default function TechnicianWorkspace() {
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               Assigned trips
             </p>
-            <p className="text-2xl font-bold text-foreground">0</p>
+            <p className="text-2xl font-bold text-foreground">
+              {loadingTrips ? '…' : assignedTrips.length}
+            </p>
             <p className="text-xs text-muted-foreground">
               Number of upcoming visits assigned to you.
             </p>
@@ -110,7 +195,9 @@ export default function TechnicianWorkspace() {
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               In-progress
             </p>
-            <p className="text-2xl font-bold text-foreground">0</p>
+            <p className="text-2xl font-bold text-foreground">
+              {loadingTrips ? '…' : inProgressTrips.length}
+            </p>
             <p className="text-xs text-muted-foreground">
               Jobs you&apos;ve checked into but not completed.
             </p>
@@ -120,7 +207,9 @@ export default function TechnicianWorkspace() {
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               Completed today
             </p>
-            <p className="text-2xl font-bold text-foreground">0</p>
+            <p className="text-2xl font-bold text-foreground">
+              {loadingTrips ? '…' : completedTodayTrips.length}
+            </p>
             <p className="text-xs text-muted-foreground">
               We&apos;ll pull this from operations data later.
             </p>
@@ -133,12 +222,36 @@ export default function TechnicianWorkspace() {
           <h2 className="text-sm font-semibold">
             Upcoming visits
           </h2>
-          <Card className="p-4 text-xs text-muted-foreground">
-            Trip scheduling and check-in/check-out will appear here once the operations API is ready.
+          <Card className="p-4 text-xs text-muted-foreground space-y-2">
+            {upcomingTrips.length === 0 && !loadingTrips ? (
+              <p>No upcoming visits yet.</p>
+            ) : (
+              <>
+                {upcomingTrips.map((trip) => (
+                  <div
+                    key={trip.id}
+                    className="flex items-center justify-between py-1 border-b last:border-b-0 border-border/40"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {new Date(trip.scheduledFor).toLocaleString()}
+                      </p>
+                      {trip.notes && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {trip.notes}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                      {trip.status.toLowerCase().replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
           </Card>
         </section>
       </main>
     </div>
   );
 }
-
