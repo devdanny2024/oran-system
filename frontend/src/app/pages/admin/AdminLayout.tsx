@@ -126,6 +126,19 @@ export default function AdminLayout({
               {user.role?.toLowerCase()}
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.localStorage.removeItem('oran_user');
+                window.localStorage.removeItem('oran_token');
+              }
+              router.push('/login');
+            }}
+          >
+            Logout
+          </Button>
         </div>
       </aside>
 
@@ -147,4 +160,3 @@ export default function AdminLayout({
     </div>
   );
 }
-

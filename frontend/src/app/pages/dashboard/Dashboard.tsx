@@ -164,6 +164,21 @@ export default function Dashboard({
               <Link href="/onboarding">
                 <Button>Start New Project</Button>
               </Link>
+              {user && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.localStorage.removeItem('oran_user');
+                      window.localStorage.removeItem('oran_token');
+                    }
+                    window.location.assign('/login');
+                  }}
+                >
+                  Logout
+                </Button>
+              )}
             </div>
           </div>
         </div>
