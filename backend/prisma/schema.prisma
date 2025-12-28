@@ -19,6 +19,7 @@ model User {
   resetPasswordToken String? @unique
   resetPasswordExpires DateTime?
   projects     Project[]
+  technicianTrips Trip[] @relation("TechnicianTrips")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -32,6 +33,7 @@ model Project {
   buildingType String?
   roomsCount  Int?
   onboarding  OnboardingSession?
+  trips       Trip[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
@@ -66,7 +68,7 @@ model Trip {
   id            String        @id @default(cuid())
   project       Project       @relation(fields: [projectId], references: [id])
   projectId     String
-  technician    User?         @relation(fields: [technicianId], references: [id])
+  technician    User?         @relation("TechnicianTrips", fields: [technicianId], references: [id])
   technicianId  String?
   status        TripStatus    @default(SCHEDULED)
   scheduledFor  DateTime
