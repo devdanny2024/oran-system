@@ -14,6 +14,8 @@ type Technician = {
   id: string;
   name: string | null;
   email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpires?: string | null;
 };
 
 const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN'];
@@ -24,6 +26,7 @@ export default function AdminTechnicians() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
 
@@ -55,48 +58,46 @@ export default function AdminTechnicians() {
     }
   }, [router]);
 
+  const refreshTechnicians = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/operations/technicians');
+      const isJson =
+        res.headers
+          .get('content-type')
+          ?.toLowerCase()
+          .includes('application/json') ?? false;
+      const body = isJson ? await res.json() : await res.text();
+
+      if (res.ok) {
+        setTechnicians((body?.items ?? []) as Technician[]);
+      } else {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ?? 'Unable to load technicians.';
+        toast.error(message);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to load technicians. Please try again.';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (checking) return;
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch('/api/operations/technicians');
-        const isJson =
-          res.headers
-            .get('content-type')
-            ?.toLowerCase()
-            .includes('application/json') ?? false;
-        const body = isJson ? await res.json() : await res.text();
-
-        if (!res.ok) {
-          const message =
-            typeof body === 'string'
-              ? body
-              : body?.message ?? 'Unable to load technicians.';
-          toast.error(message);
-          return;
-        }
-
-        setTechnicians((body?.items ?? []) as Technician[]);
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'Unable to load technicians. Please try again.';
-        toast.error(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
+    void refreshTechnicians();
   }, [checking]);
 
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Checking access…</p>
+        <p className="text-sm text-muted-foreground">Checking access...</p>
       </div>
     );
   }
@@ -138,7 +139,8 @@ export default function AdminTechnicians() {
             Invite a technician
           </p>
           <p className="text-xs text-muted-foreground">
-            Send an email invite so they can choose a password and log in as a technician.
+            Send an email invite so they can choose a password and log in as a
+            technician.
           </p>
           <div className="grid gap-3 md:grid-cols-[1.2fr,1.6fr,auto] items-end text-xs">
             <div className="space-y-1">
@@ -209,24 +211,7 @@ export default function AdminTechnicians() {
                   setInviteName('');
                   setInviteEmail('');
 
-                  // Refresh list so newly invited technician shows up.
-                  try {
-                    setLoading(true);
-                    const resTech = await fetch('/api/operations/technicians');
-                    const isJsonTech =
-                      resTech.headers
-                        .get('content-type')
-                        ?.toLowerCase()
-                        .includes('application/json') ?? false;
-                    const bodyTech = isJsonTech
-                      ? await resTech.json()
-                      : await resTech.text();
-                    if (resTech.ok) {
-                      setTechnicians((bodyTech?.items ?? []) as Technician[]);
-                    }
-                  } finally {
-                    setLoading(false);
-                  }
+                  await refreshTechnicians();
                 } catch (error) {
                   const message =
                     error instanceof Error
@@ -238,7 +223,7 @@ export default function AdminTechnicians() {
                 }
               }}
             >
-              {inviteLoading ? 'Sending…' : 'Send invite'}
+              {inviteLoading ? 'Sending...' : 'Send invite'}
             </Button>
           </div>
         </Card>
@@ -249,15 +234,15 @@ export default function AdminTechnicians() {
               Registered technicians
             </p>
             <span className="text-xs text-muted-foreground">
-              {loading ? 'Loading…' : `${technicians.length} total`}
+              {loading ? 'Loading...' : `${technicians.length} total`}
             </span>
           </div>
           {loading ? (
-            <p className="text-xs text-muted-foreground">Loading technicians…</p>
+            <p className="text-xs text-muted-foreground">Loading technicians...</p>
           ) : technicians.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              No technicians found yet. You can mark users as TECHNICIAN in the
-              database to see them here.
+              No technicians found yet. You can invite technicians here to give
+              them access.
             </p>
           ) : (
             <div className="border rounded-md divide-y">
@@ -265,6 +250,7 @@ export default function AdminTechnicians() {
                 <div className="flex-1">Name</div>
                 <div className="flex-1">Email</div>
                 <div className="w-32 text-right">User ID</div>
+                <div className="w-32 text-right">Invite</div>
               </div>
               {technicians.map((tech) => (
                 <div
@@ -278,6 +264,65 @@ export default function AdminTechnicians() {
                   <div className="w-32 text-right font-mono text-[11px]">
                     {tech.id.slice(0, 8)}…
                   </div>
+                  <div className="w-32 text-right">
+                    {tech.resetPasswordToken ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={revokingId === tech.id}
+                        onClick={async () => {
+                          try {
+                            setRevokingId(tech.id);
+                            const res = await fetch(
+                              '/api/operations/technicians/revoke',
+                              {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ userId: tech.id }),
+                              },
+                            );
+                            const isJson =
+                              res.headers
+                                .get('content-type')
+                                ?.toLowerCase()
+                                .includes('application/json') ?? false;
+                            const body = isJson
+                              ? await res.json()
+                              : await res.text();
+
+                            if (!res.ok) {
+                              const message =
+                                typeof body === 'string'
+                                  ? body
+                                  : body?.message ??
+                                    'Unable to revoke invite.';
+                              toast.error(message);
+                              return;
+                            }
+
+                            toast.success('Technician invite revoked.');
+                            await refreshTechnicians();
+                          } catch (error) {
+                            const message =
+                              error instanceof Error
+                                ? error.message
+                                : 'Unable to revoke invite. Please try again.';
+                            toast.error(message);
+                          } finally {
+                            setRevokingId(null);
+                          }
+                        }}
+                      >
+                        {revokingId === tech.id ? 'Revoking...' : 'Revoke invite'}
+                      </Button>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">
+                        —
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -287,3 +332,4 @@ export default function AdminTechnicians() {
     </div>
   );
 }
+

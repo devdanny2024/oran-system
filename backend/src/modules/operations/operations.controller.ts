@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { OperationsService } from './operations.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { InviteTechnicianDto } from './dto/invite-technician.dto';
+import { RevokeTechnicianDto } from './dto/revoke-technician.dto';
 
 @Controller('operations')
 export class OperationsController {
@@ -28,6 +29,11 @@ export class OperationsController {
   @Post('technicians/invite')
   inviteTechnician(@Body() payload: InviteTechnicianDto) {
     return this.operationsService.inviteTechnician(payload);
+  }
+
+  @Post('technicians/revoke')
+  revokeTechnicianInvite(@Body() payload: RevokeTechnicianDto) {
+    return this.operationsService.revokeTechnicianInvite(payload);
   }
 
   @Patch('trips/:id/check-in')

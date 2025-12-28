@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { InviteTechnicianDto } from './dto/invite-technician.dto';
+import { RevokeTechnicianDto } from './dto/revoke-technician.dto';
 import { TripStatus, UserRole } from '@prisma/client';
 import { EmailService } from '../../infrastructure/email/email.service';
 import * as bcrypt from 'bcryptjs';
@@ -65,7 +66,13 @@ export class OperationsService {
   async listTechnicians() {
     const technicians = await this.prisma.user.findMany({
       where: { role: UserRole.TECHNICIAN },
-      select: { id: true, name: true, email: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        resetPasswordToken: true,
+        resetPasswordExpires: true,
+      },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -124,6 +131,26 @@ export class OperationsService {
     return {
       message: 'Technician invite sent (if email is deliverable).',
     };
+  }
+
+  async revokeTechnicianInvite(payload: RevokeTechnicianDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
+
+    if (!user) {
+      return { message: 'Technician not found. No invite revoked.' };
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      },
+    });
+
+    return { message: 'Technician invite revoked.' };
   }
 
   async checkIn(tripId: string) {
