@@ -16,11 +16,13 @@ import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { postJson } from '../lib/api';
 
 export default function SignUpPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -30,9 +32,11 @@ export default function SignUpPage() {
     agreedToTerms: false
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (isSubmitting) return;
+
     if (!formData.agreedToTerms) {
       toast.error('Please agree to the terms and conditions');
       return;
@@ -43,11 +47,31 @@ export default function SignUpPage() {
       return;
     }
 
-    // Mock registration
+    setIsSubmitting(true);
+
+    const result = await postJson<
+      { user: { id: string; name: string | null; email: string; role: string }; token: string },
+      { name: string; email: string; password: string }
+    >('/auth/register', {
+      name: formData.fullName,
+      email: formData.email,
+      password: formData.password,
+    });
+
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('oran_token', result.data.token);
+      window.localStorage.setItem('oran_user', JSON.stringify(result.data.user));
+    }
+
     toast.success('Account created successfully!');
-    setTimeout(() => {
-      router.push('/onboarding');
-    }, 500);
+    router.push('/onboarding');
   };
 
   return (
@@ -177,8 +201,8 @@ export default function SignUpPage() {
                 </label>
               </div>
 
-              <Button type="submit" className="w-full">
-                Create Account
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating account...' : 'Create Account'}
               </Button>
 
               <div className="relative">

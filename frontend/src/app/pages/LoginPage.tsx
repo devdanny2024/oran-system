@@ -16,28 +16,52 @@ import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { postJson } from '../lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     remember: false
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Mock authentication
-    if (formData.email && formData.password) {
-      toast.success('Login successful!');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 500);
-    } else {
+
+    if (isSubmitting) return;
+
+    if (!formData.email || !formData.password) {
       toast.error('Please enter your credentials');
+      return;
     }
+
+    setIsSubmitting(true);
+
+    const result = await postJson<
+      { user: { id: string; name: string | null; email: string; role: string }; token: string },
+      { email: string; password: string }
+    >('/auth/login', {
+      email: formData.email,
+      password: formData.password,
+    });
+
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('oran_token', result.data.token);
+      window.localStorage.setItem('oran_user', JSON.stringify(result.data.user));
+    }
+
+    toast.success('Login successful!');
+    router.push('/dashboard');
   };
 
   return (
@@ -120,8 +144,8 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full">
-                Log In
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Logging in...' : 'Log In'}
               </Button>
 
               <div className="relative">
