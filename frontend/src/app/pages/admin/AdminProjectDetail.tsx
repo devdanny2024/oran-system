@@ -57,6 +57,10 @@ export default function AdminProjectDetail() {
   const [scheduledFor, setScheduledFor] = useState('');
   const [technicianId, setTechnicianId] = useState('');
   const [notes, setNotes] = useState('');
+  const [technicians, setTechnicians] = useState<
+    { id: string; name: string | null; email: string }[]
+  >([]);
+  const [techniciansLoading, setTechniciansLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -156,8 +160,46 @@ export default function AdminProjectDetail() {
       }
     };
 
+    const loadTechnicians = async () => {
+      try {
+        setTechniciansLoading(true);
+        const res = await fetch('/api/operations/technicians');
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load technicians.';
+          toast.error(message);
+          return;
+        }
+
+        const items = (body?.items ?? []) as {
+          id: string;
+          name: string | null;
+          email: string;
+        }[];
+        setTechnicians(items);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load technicians. Please try again.';
+        toast.error(message);
+      } finally {
+        setTechniciansLoading(false);
+      }
+    };
+
     void loadProject();
     void loadTrips();
+    void loadTechnicians();
   }, [projectId]);
 
   if (checking) {
@@ -292,8 +334,7 @@ export default function AdminProjectDetail() {
           <Card className="p-4 space-y-3">
             <h2 className="text-sm font-semibold">Schedule a site visit</h2>
             <p className="text-xs text-muted-foreground">
-              Create a basic trip for this project. You can paste a technician
-              ID for now; later we can add a picker.
+              Create a basic trip for this project and optionally assign a technician.
             </p>
             <div className="space-y-3 text-xs">
               <div className="space-y-1">
@@ -310,16 +351,26 @@ export default function AdminProjectDetail() {
               </div>
               <div className="space-y-1">
                 <label className="block text-muted-foreground" htmlFor="technicianId">
-                  Technician ID (optional)
+                  Assign technician (optional)
                 </label>
-                <input
+                <select
                   id="technicianId"
-                  type="text"
                   className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
-                  placeholder="Paste technician user id"
                   value={technicianId}
                   onChange={(e) => setTechnicianId(e.target.value)}
-                />
+                  disabled={techniciansLoading}
+                >
+                  <option value="">
+                    {techniciansLoading
+                      ? 'Loading technicians…'
+                      : 'Unassigned (choose later)'}
+                  </option>
+                  {technicians.map((tech) => (
+                    <option key={tech.id} value={tech.id}>
+                      {tech.name || tech.email} ({tech.email})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1">
                 <label className="block text-muted-foreground" htmlFor="notes">

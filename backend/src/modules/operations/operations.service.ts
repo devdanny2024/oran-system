@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
-import { TripStatus } from '@prisma/client';
+import { TripStatus, UserRole } from '@prisma/client';
 
 @Injectable()
 export class OperationsService {
@@ -55,6 +55,16 @@ export class OperationsService {
     return { items: trips };
   }
 
+  async listTechnicians() {
+    const technicians = await this.prisma.user.findMany({
+      where: { role: UserRole.TECHNICIAN },
+      select: { id: true, name: true, email: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return { items: technicians };
+  }
+
   async checkIn(tripId: string) {
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip) {
@@ -85,4 +95,3 @@ export class OperationsService {
     });
   }
 }
-

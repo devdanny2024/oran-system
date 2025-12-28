@@ -19,6 +19,11 @@ export class OperationsController {
     return this.operationsService.listTrips({ technicianId, projectId });
   }
 
+  @Get('technicians')
+  listTechnicians() {
+    return this.operationsService.listTechnicians();
+  }
+
   @Patch('trips/:id/check-in')
   checkIn(@Param('id') id: string) {
     return this.operationsService.checkIn(id);
@@ -29,4 +34,3 @@ export class OperationsController {
     return this.operationsService.checkOut(id);
   }
 }
-
