@@ -3,6 +3,7 @@
 
 import type { MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { MutatingDots } from 'react-loader-spinner';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '../components/ui/button';
@@ -56,6 +57,27 @@ export default function LandingPage() {
           // Autoplay might be blocked; ignore errors.
         });
     });
+  }, [demoOpen]);
+
+  useEffect(() => {
+    if (!demoOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const container = scrollRef.current;
+      if (!container) return;
+      const step = window.innerHeight * 0.9;
+
+      if (event.key === 'ArrowDown' || event.key === 'PageDown') {
+        event.preventDefault();
+        container.scrollBy({ top: step, behavior: 'smooth' });
+      } else if (event.key === 'ArrowUp' || event.key === 'PageUp') {
+        event.preventDefault();
+        container.scrollBy({ top: -step, behavior: 'smooth' });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [demoOpen]);
 
   const handleScroll = () => {
@@ -182,10 +204,15 @@ export default function LandingPage() {
                               />
                               {isLoading && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                                  <div className="flex items-center gap-3">
-                                    <span className="h-4 w-4 rounded-full bg-primary animate-bounce" />
-                                    <span className="h-4 w-4 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
-                                  </div>
+                                  <MutatingDots
+                                    height={100}
+                                    width={100}
+                                    color="#F5A623"
+                                    secondaryColor="#F5A623"
+                                    radius={12.5}
+                                    ariaLabel="mutating-dots-loading"
+                                    visible
+                                  />
                                 </div>
                               )}
                             </div>
