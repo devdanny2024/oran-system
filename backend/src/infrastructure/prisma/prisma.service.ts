@@ -15,7 +15,15 @@ export class PrismaService
       return;
     }
 
-    await this.$connect();
+    try {
+      await this.$connect();
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        'PrismaService: failed to connect to database on startup. The app will still run, but DB operations may fail.',
+        error,
+      );
+    }
   }
 
   async onModuleDestroy() {
