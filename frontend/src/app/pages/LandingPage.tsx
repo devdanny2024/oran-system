@@ -41,6 +41,7 @@ export default function LandingPage() {
     if (!container) return;
     const itemHeight = window.innerHeight;
     container.scrollTop = itemHeight * demoVideos.length;
+    container.focus();
   }, [demoOpen]);
 
   useEffect(() => {
@@ -81,6 +82,22 @@ export default function LandingPage() {
     } else {
       video.pause();
     }
+  };
+
+  const [loadingStates, setLoadingStates] = useState<Record<number, boolean>>(
+    () => Object.fromEntries(infiniteVideos.map((_, index) => [index, true])),
+  );
+
+  const handleLoadedData = (index: number) => {
+    setLoadingStates((prev) => ({ ...prev, [index]: false }));
+  };
+
+  const handleWaiting = (index: number) => {
+    setLoadingStates((prev) => ({ ...prev, [index]: true }));
+  };
+
+  const handlePlaying = (index: number) => {
+    setLoadingStates((prev) => ({ ...prev, [index]: false }));
   };
 
   return (
@@ -140,27 +157,42 @@ export default function LandingPage() {
                       <div
                         ref={scrollRef}
                         onScroll={handleScroll}
-                        className="h-full overflow-y-auto snap-y snap-mandatory"
+                        tabIndex={0}
+                        className="h-full overflow-y-auto snap-y snap-mandatory touch-pan-y overscroll-none focus:outline-none"
                       >
-                        {infiniteVideos.map((video, index) => (
-                          <div
-                            // eslint-disable-next-line react/no-array-index-key
-                            key={`${video.src}-${index}`}
-                            className="h-screen flex flex-col items-center justify-center snap-start"
-                          >
-                            <video
-                              src={video.src}
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              onClick={handleVideoClick}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
+                        {infiniteVideos.map((video, index) => {
+                          const isLoading = loadingStates[index] ?? true;
+                          return (
+                            <div
+                              // eslint-disable-next-line react/no-array-index-key
+                              key={`${video.src}-${index}`}
+                              className="relative h-screen flex flex-col items-center justify-center snap-start"
+                            >
+                              <video
+                                src={video.src}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                onClick={handleVideoClick}
+                                onLoadedData={() => handleLoadedData(index)}
+                                onWaiting={() => handleWaiting(index)}
+                                onPlaying={() => handlePlaying(index)}
+                                className="w-full h-full object-cover"
+                              />
+                              {isLoading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                  <div className="flex items-center gap-3">
+                                    <span className="h-4 w-4 rounded-full bg-primary animate-bounce" />
+                                    <span className="h-4 w-4 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce">
+                      <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center text-xs text-gray-200 animate-bounce z-10">
                         <ChevronDown className="h-6 w-6 mb-1" />
                         <span>Scroll for more</span>
                       </div>
