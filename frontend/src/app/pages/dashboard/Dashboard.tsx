@@ -3,21 +3,30 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '../../components/ui/button';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
-import { 
-  LayoutDashboard, 
-  FolderKanban, 
-  Settings, 
-  CreditCard, 
-  FileText, 
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Settings,
+  CreditCard,
+  FileText,
   HelpCircle,
   Bell,
   MessageCircle,
   Menu,
-  X
+  X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sheet, SheetContent } from '../../components/ui/sheet';
 import { Badge } from '../../components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+
+type OranUser = {
+  id: string;
+  name?: string | null;
+  email?: string;
+  role?: string;
+  emailVerifiedAt?: string | null;
+};
 
 export default function Dashboard({
   children,
@@ -26,6 +35,19 @@ export default function Dashboard({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<OranUser | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('oran_user');
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as OranUser;
+      setUser(parsed);
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -80,11 +102,19 @@ export default function Dashboard({
       <div className="p-4 border-t border-border">
         <div className="flex items-center">
           <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-primary text-white">JD</AvatarFallback>
+            <AvatarFallback className="bg-primary text-white">
+              {(user?.name || user?.email || 'O')
+                .toUpperCase()
+                .charAt(0)}
+            </AvatarFallback>
           </Avatar>
           <div className="ml-3 flex-1">
-            <p className="text-sm font-medium">John Doe</p>
-            <p className="text-xs text-muted-foreground">john@example.com</p>
+            <p className="text-sm font-medium">
+              {user?.name || 'ORAN customer'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {user?.email || 'Your smart home account'}
+            </p>
           </div>
         </div>
       </div>
@@ -140,7 +170,20 @@ export default function Dashboard({
 
         {/* Page Content */}
         <main className="py-8">
-          <div className="px-4 sm:px-6 lg:px-8">
+          <div className="px-4 sm:px-6 lg:px-8 space-y-4">
+            {user && !user.emailVerifiedAt && (
+              <Alert className="bg-amber-50 border-amber-300">
+                <AlertTitle className="text-amber-900">
+                  Verify your email to unlock everything
+                </AlertTitle>
+                <AlertDescription className="text-amber-800">
+                  We&apos;ve sent a verification link to{' '}
+                  <span className="font-semibold">{user.email}</span>. Once you
+                  confirm it, we&apos;ll fully activate your ORAN dashboard for
+                  quotes, documents, and payments.
+                </AlertDescription>
+              </Alert>
+            )}
             {children}
           </div>
         </main>
