@@ -69,15 +69,15 @@ export default function LandingPage() {
 
       if (event.key === 'ArrowDown' || event.key === 'PageDown') {
         event.preventDefault();
-        container.scrollBy({ top: step, behavior: 'smooth' });
+        container.scrollTop += step;
       } else if (event.key === 'ArrowUp' || event.key === 'PageUp') {
         event.preventDefault();
-        container.scrollBy({ top: -step, behavior: 'smooth' });
+        container.scrollTop -= step;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => document.removeEventListener('keydown', handleKeyDown, { capture: true } as any);
   }, [demoOpen]);
 
   const handleScroll = () => {
