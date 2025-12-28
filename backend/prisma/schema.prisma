@@ -57,6 +57,8 @@ model Product {
   category     ProductCategory
   priceTier    PriceTier
   unitPrice    Decimal
+  marketPrice  Decimal?
+  ourPrice     Decimal?
   description  String?
   imageUrl     String?
   active       Boolean       @default(true)
