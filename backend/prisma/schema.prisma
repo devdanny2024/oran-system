@@ -62,6 +62,21 @@ model Product {
   updatedAt    DateTime      @updatedAt
 }
 
+model Trip {
+  id            String        @id @default(cuid())
+  project       Project       @relation(fields: [projectId], references: [id])
+  projectId     String
+  technician    User?         @relation(fields: [technicianId], references: [id])
+  technicianId  String?
+  status        TripStatus    @default(SCHEDULED)
+  scheduledFor  DateTime
+  checkInAt     DateTime?
+  checkOutAt    DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
 enum UserRole {
   CUSTOMER
   TECHNICIAN
@@ -95,4 +110,11 @@ enum PriceTier {
   ECONOMY
   STANDARD
   LUXURY
+}
+
+enum TripStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
