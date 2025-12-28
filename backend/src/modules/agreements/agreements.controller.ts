@@ -5,12 +5,12 @@ import {
   Headers,
   Param,
   Post,
+  Res,
 } from '@nestjs/common';
 import { AgreementsService } from './agreements.service';
-import { Response } from 'express';
-import * as PDFDocument from 'pdfkit';
+import type { Response } from 'express';
+import PDFDocument = require('pdfkit');
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { Res } from '@nestjs/common';
 
 @Controller('projects/:projectId/agreements')
 export class AgreementsController {
@@ -60,7 +60,7 @@ export class AgreementsController {
       `inline; filename="${agreement.title || 'agreement'}.pdf"`,
     );
 
-    const doc = new (PDFDocument as any)({
+    const doc = new PDFDocument({
       size: 'A4',
       margin: 50,
     });
@@ -107,4 +107,3 @@ export class AgreementsController {
     doc.end();
   }
 }
-
