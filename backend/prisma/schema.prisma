@@ -121,6 +121,20 @@ model QuoteItem {
   notes       String?
 }
 
+model ProjectAgreement {
+  id                     String          @id @default(cuid())
+  project                Project         @relation(fields: [projectId], references: [id])
+  projectId              String
+  type                   AgreementType
+  title                  String
+  content                String
+  acceptedAt             DateTime?
+  acceptedByUserId       String?
+  acceptedDeviceSignature String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+}
+
 enum UserRole {
   CUSTOMER
   TECHNICIAN
@@ -167,4 +181,10 @@ enum QuoteStatus {
   GENERATED
   CUSTOMER_EDITED
   SELECTED
+}
+
+enum AgreementType {
+  MAINTENANCE
+  SCOPE_OF_WORK
+  PAYMENT_TERMS
 }

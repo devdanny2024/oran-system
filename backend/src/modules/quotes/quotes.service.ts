@@ -5,6 +5,7 @@ import { AddQuoteItemDto } from './dto/add-quote-item.dto';
 import { UpdateQuoteItemDto } from './dto/update-quote-item.dto';
 import { AiService } from '../../infrastructure/ai/ai.service';
 import { computeQuoteFees } from '../../domain/pricing/quote-fees';
+import { AgreementsService } from '../agreements/agreements.service';
 
 interface GeneratedQuoteItemInput {
   productId: string | null;
@@ -19,6 +20,7 @@ export class QuotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
+    private readonly agreements: AgreementsService,
   ) {}
 
   async listForProject(projectId: string) {
@@ -67,11 +69,14 @@ export class QuotesService {
 
       await tx.project.update({
         where: { id: existing.projectId },
-        data: { status: 'QUOTE_SELECTED' },
+        data: { status: 'DOCUMENTS_PENDING' },
       });
 
       return selected;
     });
+
+    // Ensure project agreements exist once a quote is selected.
+    await this.agreements.createForProjectIfMissing(existing.projectId);
 
     return updated;
   }
