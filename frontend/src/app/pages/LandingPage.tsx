@@ -47,6 +47,7 @@ export default function LandingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [hasScrolledOnce, setHasScrolledOnce] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<'cost' | 'location' | null>(null);
 
   const handleVideoClick = (event: MouseEvent<HTMLVideoElement>) => {
     const video = event.currentTarget;
@@ -233,10 +234,20 @@ export default function LandingPage() {
                           </div>
                         )}
                         <div className="pointer-events-auto absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
-                          <Tooltip>
+                          <Tooltip
+                            open={activeTooltip === 'cost'}
+                            onOpenChange={(open) => {
+                              setActiveTooltip(open ? 'cost' : null);
+                            }}
+                          >
                             <TooltipTrigger asChild>
                               <button
                                 type="button"
+                                onClick={() =>
+                                  setActiveTooltip((prev) =>
+                                    prev === 'cost' ? null : 'cost',
+                                  )
+                                }
                                 className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-xs md:text-sm text-white border border-white/10 transition-transform transition-colors hover:bg-black/80 hover:scale-105"
                               >
                                 <DollarSign className="h-4 w-4 text-primary" />
@@ -247,10 +258,20 @@ export default function LandingPage() {
                               Cost - {demoVideos[activeIndex]?.cost}
                             </TooltipContent>
                           </Tooltip>
-                          <Tooltip>
+                          <Tooltip
+                            open={activeTooltip === 'location'}
+                            onOpenChange={(open) => {
+                              setActiveTooltip(open ? 'location' : null);
+                            }}
+                          >
                             <TooltipTrigger asChild>
                               <button
                                 type="button"
+                                onClick={() =>
+                                  setActiveTooltip((prev) =>
+                                    prev === 'location' ? null : 'location',
+                                  )
+                                }
                                 className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-xs md:text-sm text-white border border-white/10 transition-transform transition-colors hover:bg-black/80 hover:scale-105"
                               >
                                 <MapPin className="h-4 w-4 text-primary" />
