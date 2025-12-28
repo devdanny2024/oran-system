@@ -56,24 +56,25 @@ export class AiService {
     try {
       // eslint-disable-next-line no-console
       console.log('[AiService] Calling Gemini model', this.model);
-      const res = await fetch(`${endpoint}?key=${encodeURIComponent(this.apiKey)}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            // Use snake_case per Gemini API spec.
-            response_mime_type: 'application/json',
+      const res = await fetch(
+        `${endpoint}?key=${encodeURIComponent(this.apiKey)}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        }),
-      });
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: prompt }],
+              },
+            ],
+            // Keep generationConfig minimal for broad compatibility.
+            // We rely on the prompt to request JSON.
+          }),
+        },
+      );
 
       if (!res.ok) {
         // eslint-disable-next-line no-console

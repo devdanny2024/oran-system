@@ -31,6 +31,13 @@ export class QuotesController {
     return this.quotesService.generateForProject(dto.projectId);
   }
 
+  // Convenience endpoint so callers can trigger quote generation
+  // without sending a JSON body (e.g., passing projectId in the URL).
+  @Post('generate/:projectId')
+  async generateForProject(@Param('projectId') projectId: string) {
+    return this.quotesService.generateForProject(projectId);
+  }
+
   @Patch(':id/select')
   async select(@Param('id') id: string) {
     return this.quotesService.selectQuote(id);

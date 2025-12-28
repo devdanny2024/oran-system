@@ -8,11 +8,21 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
 
   try {
-    const response = await fetch(`${BACKEND_API_BASE_URL}/quotes/generate`, {
+    const projectId = body?.projectId;
+    const targetUrl = projectId
+      ? `${BACKEND_API_BASE_URL}/quotes/generate/${encodeURIComponent(projectId)}`
+      : `${BACKEND_API_BASE_URL}/quotes/generate`;
+
+    const init: RequestInit = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    };
+
+    if (!projectId) {
+      init.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(targetUrl, init);
 
     const contentType = response.headers.get('content-type')?.toLowerCase();
     const isJson = contentType?.includes('application/json');
@@ -35,4 +45,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message }, { status: 502 });
   }
 }
-
