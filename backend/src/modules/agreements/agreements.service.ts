@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { AgreementType, ProjectStatus } from '@prisma/client';
+import { ProjectStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -73,7 +73,7 @@ export class AgreementsService {
         tx.projectAgreement.create({
           data: {
             projectId,
-            type: AgreementType.MAINTENANCE,
+            type: 'MAINTENANCE',
             title: 'Installation & Maintenance Agreement',
             content: maintenanceContent,
           },
@@ -81,7 +81,7 @@ export class AgreementsService {
         tx.projectAgreement.create({
           data: {
             projectId,
-            type: AgreementType.SCOPE_OF_WORK,
+            type: 'SCOPE_OF_WORK',
             title: 'Scope of Work & Product Schedule',
             content: scopeContent,
           },
@@ -89,7 +89,7 @@ export class AgreementsService {
         tx.projectAgreement.create({
           data: {
             projectId,
-            type: AgreementType.PAYMENT_TERMS,
+            type: 'PAYMENT_TERMS',
             title: 'Payment, Warranty & Cancellation Terms',
             content: paymentContent,
           },
@@ -159,4 +159,3 @@ export class AgreementsService {
     return updated;
   }
 }
-
