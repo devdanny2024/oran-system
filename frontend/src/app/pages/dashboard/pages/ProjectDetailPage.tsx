@@ -61,6 +61,14 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [quotesLoading, setQuotesLoading] = useState(false);
+  const [agreements, setAgreements] = useState<
+    {
+      id: string;
+      type: 'MAINTENANCE' | 'SCOPE_OF_WORK' | 'PAYMENT_TERMS';
+      title: string;
+      acceptedAt?: string | null;
+    }[]
+  >([]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -105,6 +113,33 @@ export default function ProjectDetailPage() {
           }
         } finally {
           setQuotesLoading(false);
+        }
+
+        // Load project agreements (documents).
+        try {
+          const resAgreements = await fetch(
+            `/api/projects/${projectId}/agreements`,
+          );
+          const isJsonAgreements =
+            resAgreements.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const bodyAgreements = isJsonAgreements
+            ? await resAgreements.json()
+            : await resAgreements.text();
+          if (resAgreements.ok) {
+            setAgreements(
+              ((bodyAgreements as any)?.items ?? []) as {
+                id: string;
+                type: 'MAINTENANCE' | 'SCOPE_OF_WORK' | 'PAYMENT_TERMS';
+                title: string;
+                acceptedAt?: string | null;
+              }[],
+            );
+          }
+        } catch {
+          // best effort; ignore if not yet available
         }
       } catch (error) {
         const message =
@@ -171,6 +206,141 @@ export default function ProjectDetailPage() {
             <p>{project.roomsCount ?? 'Not specified yet'}</p>
           </div>
         </div>
+      </Card>
+
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Project documents</h2>
+          <span className="text-xs text-muted-foreground">
+            {project.status === 'DOCUMENTS_SIGNED'
+              ? 'All agreements accepted'
+              : project.status === 'DOCUMENTS_PENDING'
+                ? 'Awaiting your acceptance'
+                : 'Generated after you choose a quote'}
+          </span>
+        </div>
+        {agreements.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Once you choose a quote, ORAN will prepare your installation,
+            scope of work and payment terms documents as signed PDFs for you
+            to review and accept here.
+          </p>
+        ) : (
+          <div className="space-y-2 text-xs">
+            {agreements.map((agreement) => {
+              const accepted = !!agreement.acceptedAt;
+              return (
+                <div
+                  key={agreement.id}
+                  className="flex flex-wrap items-center justify-between gap-2 border rounded-md px-3 py-2"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-foreground">
+                      {agreement.title}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {accepted
+                        ? `Accepted on ${new Date(
+                            agreement.acceptedAt!,
+                          ).toLocaleString()}`
+                        : 'Pending your review and acceptance'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        window.open(
+                          `/api/proxy/projects/${project.id}/agreements/${agreement.id}/pdf`,
+                          '_blank',
+                        )
+                      }
+                    >
+                      View PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={accepted}
+                      onClick={async () => {
+                        try {
+                          const stored =
+                            typeof window !== 'undefined'
+                              ? window.localStorage.getItem('oran_user')
+                              : null;
+                          const user =
+                            stored && JSON.parse(stored as string);
+                          const userId = user?.id as string | undefined;
+                          if (!userId) {
+                            toast.error(
+                              'Please log in again to accept documents.',
+                            );
+                            return;
+                          }
+
+                          const res = await fetch(
+                            `/api/projects/${project.id}/agreements/${agreement.id}/accept`,
+                            {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ userId }),
+                            },
+                          );
+
+                          const isJson =
+                            res.headers
+                              .get('content-type')
+                              ?.toLowerCase()
+                              .includes('application/json') ?? false;
+                          const body = isJson
+                            ? await res.json()
+                            : await res.text();
+
+                          if (!res.ok) {
+                            const message =
+                              typeof body === 'string'
+                                ? body
+                                : body?.message ??
+                                  'Unable to accept document.';
+                            toast.error(message);
+                            return;
+                          }
+
+                          toast.success('Document accepted.');
+                          // Reload agreements to reflect new status.
+                          const resAgreements = await fetch(
+                            `/api/projects/${project.id}/agreements`,
+                          );
+                          const isJsonAgreements =
+                            resAgreements.headers
+                              .get('content-type')
+                              ?.toLowerCase()
+                              .includes('application/json') ?? false;
+                          const bodyAgreements = isJsonAgreements
+                            ? await resAgreements.json()
+                            : await resAgreements.text();
+                          if (resAgreements.ok) {
+                            setAgreements(
+                              ((bodyAgreements as any)?.items ?? []) as any[],
+                            );
+                          }
+                        } catch (error) {
+                          const message =
+                            error instanceof Error
+                              ? error.message
+                              : 'Unable to accept document. Please try again.';
+                          toast.error(message);
+                        }
+                      }}
+                    >
+                      {accepted ? 'Accepted' : 'I agree'}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       <Card className="p-4 space-y-3">
