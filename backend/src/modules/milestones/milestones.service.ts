@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { MilestoneStatus, PaymentPlanType } from '@prisma/client';
 import { AiService } from '../../infrastructure/ai/ai.service';
+import { PaystackService } from '../../infrastructure/paystack/paystack.service';
 
 interface MilestonePlan {
   milestones: {
@@ -17,6 +18,7 @@ export class MilestonesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
+    private readonly paystack: PaystackService,
   ) {}
 
   async listForProject(projectId: string) {
@@ -47,6 +49,110 @@ export class MilestonesService {
     });
 
     return updated;
+  }
+
+  async initializePaystackPayment(projectId: string, milestoneId: string) {
+    const milestone = await (this.prisma as any).projectMilestone.findFirst({
+      where: { id: milestoneId, projectId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone not found for this project.');
+    }
+
+    if (milestone.status === MilestoneStatus.COMPLETED) {
+      throw new BadRequestException('Milestone is already completed.');
+    }
+
+    const project = await (this.prisma as any).project.findUnique({
+      where: { id: projectId },
+      include: { user: true },
+    });
+
+    if (!project || !project.user) {
+      throw new BadRequestException(
+        'Project or project owner not found for payment.',
+      );
+    }
+
+    const email = project.user.email;
+    const amountNaira = Number(milestone.amount ?? 0);
+
+    if (!amountNaira || amountNaira <= 0) {
+      throw new BadRequestException(
+        'Milestone amount is invalid for payment.',
+      );
+    }
+
+    const reference = `oran_${projectId}_${milestoneId}_${Date.now()}`;
+
+    const callbackBase =
+      (process.env.PAYSTACK_CALLBACK_BASE_URL as string | undefined) ??
+      'http://localhost:3000/paystack/callback';
+
+    const callbackUrl = `${callbackBase}?projectId=${encodeURIComponent(
+      projectId,
+    )}&milestoneId=${encodeURIComponent(milestoneId)}`;
+
+    const data = await this.paystack.initializeTransaction({
+      email,
+      amountNaira,
+      reference,
+      callbackUrl,
+      metadata: {
+        projectId,
+        milestoneId,
+      },
+    });
+
+    return {
+      authorizationUrl: data.authorization_url,
+      reference: data.reference,
+    };
+  }
+
+  async verifyPaystackPayment(projectId: string, reference: string) {
+    const data = await this.paystack.verifyTransaction(reference);
+
+    if (data.status !== 'success') {
+      throw new BadRequestException(
+        'Payment was not successful. Please try again.',
+      );
+    }
+
+    const metadata = data.metadata ?? {};
+    const metaProjectId = metadata.projectId as string | undefined;
+    const milestoneId = metadata.milestoneId as string | undefined;
+
+    if (!metaProjectId || !milestoneId) {
+      throw new BadRequestException(
+        'Payment metadata missing project or milestone information.',
+      );
+    }
+
+    if (metaProjectId !== projectId) {
+      throw new BadRequestException(
+        'Payment does not belong to this project.',
+      );
+    }
+
+    const milestone = await (this.prisma as any).projectMilestone.findFirst({
+      where: { id: milestoneId, projectId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone not found for this project.');
+    }
+
+    const updated = await (this.prisma as any).projectMilestone.update({
+      where: { id: milestoneId },
+      data: { status: MilestoneStatus.COMPLETED },
+    });
+
+    return {
+      milestoneId,
+      status: updated.status,
+    };
   }
 
   async createForPaymentPlan(projectId: string, planType: PaymentPlanType) {

@@ -436,12 +436,8 @@ export default function ProjectDetailPage() {
                   onClick={async () => {
                     try {
                       const res = await fetch(
-                        `/api/projects/${project.id}/milestones/${nextPayableMilestone.id}/status`,
-                        {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ status: 'COMPLETED' }),
-                        },
+                        `/api/projects/${project.id}/milestones/${nextPayableMilestone.id}/paystack/initialize`,
+                        { method: 'POST' },
                       );
 
                       const isJson =
@@ -456,31 +452,31 @@ export default function ProjectDetailPage() {
                           typeof body === 'string'
                             ? body
                             : body?.message ??
-                              'Unable to mark milestone as paid.';
+                              'Unable to start payment. Please try again.';
                         toast.error(message);
                         return;
                       }
 
-                      toast.success(
-                        `Milestone ${nextPayableMilestone.index} marked as paid.`,
-                      );
-                      setMilestones((prev) =>
-                        prev.map((m) =>
-                          m.id === nextPayableMilestone.id
-                            ? { ...m, status: 'COMPLETED' }
-                            : m,
-                        ),
-                      );
+                      const authorizationUrl = (body as any)
+                        ?.authorizationUrl as string | undefined;
+                      if (!authorizationUrl) {
+                        toast.error(
+                          'Payment initialised but no authorization URL was returned.',
+                        );
+                        return;
+                      }
+
+                      window.location.href = authorizationUrl;
                     } catch (error) {
                       const message =
                         error instanceof Error
                           ? error.message
-                          : 'Unable to mark milestone as paid. Please try again.';
+                          : 'Unable to start payment. Please try again.';
                       toast.error(message);
                     }
                   }}
                 >
-                  Make payment now (simulate)
+                  Make payment now
                 </Button>
               </div>
             ) : (
