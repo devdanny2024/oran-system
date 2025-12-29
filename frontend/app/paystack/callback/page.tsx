@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+// This page depends on search params from the browser after Paystack
+// redirects back, so force it to render dynamically instead of being
+// prerendered at build time.
+export const dynamic = 'force-dynamic';
+
 export default function PaystackCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,4 +77,3 @@ export default function PaystackCallbackPage() {
     </div>
   );
 }
-
