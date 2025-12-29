@@ -363,13 +363,29 @@ export default function ProjectDetailPage() {
                           toast.success('Document accepted.');
                           // Mark this agreement as accepted locally so the
                           // UI updates immediately without clearing the card.
-                          setAgreements((prev) =>
-                            prev.map((a) =>
+                          setAgreements((prev) => {
+                            const updated = prev.map((a) =>
                               a.id === agreement.id
                                 ? { ...a, acceptedAt: new Date().toISOString() }
                                 : a,
-                            ),
-                          );
+                            );
+
+                            const allAccepted = updated.every(
+                              (a) => !!a.acceptedAt,
+                            );
+
+                            if (
+                              allAccepted &&
+                              project.status !== 'DOCUMENTS_SIGNED'
+                            ) {
+                              setProject({
+                                ...project,
+                                status: 'DOCUMENTS_SIGNED',
+                              });
+                            }
+
+                            return updated;
+                          });
                         } catch (error) {
                           const message =
                             error instanceof Error
