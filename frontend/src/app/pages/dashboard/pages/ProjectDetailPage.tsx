@@ -306,12 +306,10 @@ export default function ProjectDetailPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        window.open(
-                          `/api/proxy/projects/${project.id}/agreements/${agreement.id}/pdf`,
-                          '_blank',
-                        )
-                      }
+                      onClick={() => {
+                        const directUrl = `http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000/projects/${project.id}/agreements/${agreement.id}/pdf`;
+                        window.open(directUrl, '_blank');
+                      }}
                     >
                       {accepted ? 'View signed copy' : 'View PDF'}
                     </Button>
