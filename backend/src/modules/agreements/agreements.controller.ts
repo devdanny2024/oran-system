@@ -12,7 +12,6 @@ import { AgreementsService } from './agreements.service';
 type ExpressResponse = any;
 import PDFDocument = require('pdfkit');
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { AgreementType } from '@prisma/client';
 
 @Controller('projects/:projectId/agreements')
 export class AgreementsController {
@@ -80,7 +79,7 @@ export class AgreementsController {
 
     // Regenerate content on the fly so PDFs always use the
     // latest rich templates, even if the stored content is older.
-    if (agreement.type === AgreementType.MAINTENANCE) {
+    if (agreement.type === 'MAINTENANCE') {
       content = [
         'Installation & Maintenance Agreement',
         '',
@@ -106,7 +105,7 @@ export class AgreementsController {
         'ORAN may temporarily access controllers, apps and cloud services to commission and support the system.',
         'Administrative logins, configuration files and documentation will be handed over on completion, except for any proprietary tools ORAN uses internally.',
       ].join('\n');
-    } else if (agreement.type === AgreementType.SCOPE_OF_WORK) {
+    } else if (agreement.type === 'SCOPE_OF_WORK') {
       content = [
         'Scope of Work & Product Schedule',
         '',
@@ -128,7 +127,7 @@ export class AgreementsController {
         'On completion, ORAN will walk the customer through the system, demonstrate key use cases, and provide basic training on apps, scenes and schedules.',
         'Any punch‑list items identified during handover will be documented and scheduled for resolution within a reasonable timeframe.',
       ].join('\n');
-    } else if (agreement.type === AgreementType.PAYMENT_TERMS) {
+    } else if (agreement.type === 'PAYMENT_TERMS') {
       content = [
         'Payment, Warranty & Cancellation Terms',
         '',
