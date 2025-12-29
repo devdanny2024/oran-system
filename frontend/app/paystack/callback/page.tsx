@@ -1,22 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
-// This page depends on search params from the browser after Paystack
-// redirects back, so force it to render dynamically instead of being
-// prerendered at build time.
+// This page depends on query parameters present only in the browser URL.
+// Force it to render dynamically and read search params via window.location
+// instead of useSearchParams (which requires a suspense boundary).
 export const dynamic = 'force-dynamic';
 
 export default function PaystackCallbackPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [message, setMessage] = useState('Verifying your payment...');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const reference = searchParams.get('reference');
-    const projectId = searchParams.get('projectId');
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get('reference');
+    const projectId = params.get('projectId');
 
     if (!reference || !projectId) {
       setError('Missing payment reference or project information.');
@@ -64,7 +66,7 @@ export default function PaystackCallbackPage() {
     };
 
     void verify();
-  }, [router, searchParams]);
+  }, [router]);
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2">
