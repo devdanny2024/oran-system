@@ -224,6 +224,8 @@ export default function ProjectDetailPage() {
   const onboarding = project.onboarding ?? undefined;
   const features =
     (onboarding?.selectedFeatures as string[] | undefined) ?? undefined;
+  const allDocumentsAccepted =
+    agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
 
   return (
     <div className="space-y-6">
@@ -411,13 +413,14 @@ export default function ProjectDetailPage() {
           <span className="text-xs text-muted-foreground">
             {project.status === 'PAYMENT_PLAN_SELECTED'
               ? 'Payment plan selected'
-              : project.status === 'DOCUMENTS_SIGNED'
+              : allDocumentsAccepted || project.status === 'DOCUMENTS_SIGNED'
                 ? 'Choose your preferred payment style'
                 : 'Available after you accept all documents'}
           </span>
         </div>
 
-        {project.status !== 'DOCUMENTS_SIGNED' &&
+        {!allDocumentsAccepted &&
+        project.status !== 'DOCUMENTS_SIGNED' &&
         project.status !== 'PAYMENT_PLAN_SELECTED' ? (
           <p className="text-xs text-muted-foreground">
             Once you have reviewed and accepted your project documents, you&apos;ll
@@ -432,7 +435,11 @@ export default function ProjectDetailPage() {
                   className="mt-[3px]"
                   name="payment-plan"
                   value="MILESTONE_3"
-                  disabled={project.status !== 'DOCUMENTS_SIGNED' && project.status !== 'PAYMENT_PLAN_SELECTED'}
+                  disabled={
+                    !allDocumentsAccepted &&
+                    project.status !== 'DOCUMENTS_SIGNED' &&
+                    project.status !== 'PAYMENT_PLAN_SELECTED'
+                  }
                   checked={paymentPlanSelection === 'MILESTONE_3'}
                   onChange={() => setPaymentPlanSelection('MILESTONE_3')}
                 />
@@ -454,7 +461,11 @@ export default function ProjectDetailPage() {
                   className="mt-[3px]"
                   name="payment-plan"
                   value="EIGHTY_TEN_TEN"
-                  disabled={project.status !== 'DOCUMENTS_SIGNED' && project.status !== 'PAYMENT_PLAN_SELECTED'}
+                  disabled={
+                    !allDocumentsAccepted &&
+                    project.status !== 'DOCUMENTS_SIGNED' &&
+                    project.status !== 'PAYMENT_PLAN_SELECTED'
+                  }
                   checked={paymentPlanSelection === 'EIGHTY_TEN_TEN'}
                   onChange={() => setPaymentPlanSelection('EIGHTY_TEN_TEN')}
                 />
@@ -482,7 +493,8 @@ export default function ProjectDetailPage() {
                 disabled={
                   savingPaymentPlan ||
                   !paymentPlanSelection ||
-                  project.status !== 'DOCUMENTS_SIGNED'
+                  (!allDocumentsAccepted &&
+                    project.status !== 'DOCUMENTS_SIGNED')
                 }
                 onClick={async () => {
                   if (!paymentPlanSelection) {
