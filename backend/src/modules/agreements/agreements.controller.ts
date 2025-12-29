@@ -62,6 +62,16 @@ export class AgreementsController {
       return;
     }
 
+    const project = await (this.prisma as any).project.findUnique({
+      where: { id: projectId },
+      include: { user: true },
+    });
+
+    const customerName =
+      project?.user?.name && project.user.name.trim().length > 0
+        ? project.user.name
+        : project?.user?.email ?? 'Customer';
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -92,6 +102,13 @@ export class AgreementsController {
       align: 'left',
       lineGap: 4,
     });
+
+    doc.moveDown(1.5);
+    doc.fontSize(11).text('Customer', { underline: true }).moveDown(0.5);
+    doc.text(`Name: ${customerName}`);
+    if (project?.user?.email) {
+      doc.text(`Email: ${project.user.email}`);
+    }
 
     doc.moveDown(2);
     doc

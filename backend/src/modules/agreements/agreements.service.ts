@@ -44,22 +44,21 @@ export class AgreementsService {
 
     const project = await (this.prisma as any).project.findUnique({
       where: { id: projectId },
-      include: { onboarding: true },
+      include: { onboarding: true, user: true },
     });
 
     if (!project) {
       throw new NotFoundException('Project not found');
     }
 
-    const customerName = project.userId
-      ? undefined
-      : undefined; // can be extended later when we join User
+    const customerName =
+      project.user?.name && project.user.name.trim().length > 0
+        ? project.user.name
+        : project.user?.email ?? 'Customer';
 
     const address = project.onboarding?.siteAddress ?? 'Not provided';
 
-    const baseContext = `Project: ${project.name}\nAddress: ${address}\nRooms: ${
-      project.roomsCount ?? 'N/A'
-    }`;
+    const baseContext = `Customer: ${customerName}\nProject: ${project.name}\nAddress: ${address}\nRooms: ${project.roomsCount ?? 'N/A'}`;
 
     const maintenanceContent = [
       'Installation & Maintenance Agreement',
