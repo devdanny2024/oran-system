@@ -38,10 +38,6 @@ export class AgreementsService {
       where: { projectId },
     });
 
-    if (existing.length) {
-      return existing;
-    }
-
     const project = await (this.prisma as any).project.findUnique({
       where: { id: projectId },
       include: { onboarding: true, user: true },
@@ -132,36 +128,67 @@ export class AgreementsService {
       'This agreement is governed by the laws of the Federal Republic of Nigeria. Any disputes will be handled in good faith, with both parties first attempting to resolve issues informally before escalating further.',
     ].join('\n');
 
-    const created = await this.prisma.$transaction((tx: any) =>
-      Promise.all([
-        tx.projectAgreement.create({
-          data: {
-            projectId,
-            type: 'MAINTENANCE',
-            title: 'Installation & Maintenance Agreement',
-            content: maintenanceContent,
-          },
-        }),
-        tx.projectAgreement.create({
-          data: {
-            projectId,
-            type: 'SCOPE_OF_WORK',
-            title: 'Scope of Work & Product Schedule',
-            content: scopeContent,
-          },
-        }),
-        tx.projectAgreement.create({
-          data: {
-            projectId,
-            type: 'PAYMENT_TERMS',
-            title: 'Payment, Warranty & Cancellation Terms',
-            content: paymentContent,
-          },
-        }),
-      ]),
-    );
+    const upserted = await this.prisma.$transaction(async (tx: any) => {
+      const byType: Record<string, any | undefined> = {};
+      for (const agreement of existing) {
+        byType[agreement.type] = agreement;
+      }
 
-    return created;
+      const results = await Promise.all([
+        byType.MAINTENANCE
+          ? tx.projectAgreement.update({
+              where: { id: byType.MAINTENANCE.id },
+              data: {
+                title: 'Installation & Maintenance Agreement',
+                content: maintenanceContent,
+              },
+            })
+          : tx.projectAgreement.create({
+              data: {
+                projectId,
+                type: 'MAINTENANCE',
+                title: 'Installation & Maintenance Agreement',
+                content: maintenanceContent,
+              },
+            }),
+        byType.SCOPE_OF_WORK
+          ? tx.projectAgreement.update({
+              where: { id: byType.SCOPE_OF_WORK.id },
+              data: {
+                title: 'Scope of Work & Product Schedule',
+                content: scopeContent,
+              },
+            })
+          : tx.projectAgreement.create({
+              data: {
+                projectId,
+                type: 'SCOPE_OF_WORK',
+                title: 'Scope of Work & Product Schedule',
+                content: scopeContent,
+              },
+            }),
+        byType.PAYMENT_TERMS
+          ? tx.projectAgreement.update({
+              where: { id: byType.PAYMENT_TERMS.id },
+              data: {
+                title: 'Payment, Warranty & Cancellation Terms',
+                content: paymentContent,
+              },
+            })
+          : tx.projectAgreement.create({
+              data: {
+                projectId,
+                type: 'PAYMENT_TERMS',
+                title: 'Payment, Warranty & Cancellation Terms',
+                content: paymentContent,
+              },
+            }),
+      ]);
+
+      return results;
+    });
+
+    return upserted;
   }
 
   async acceptAgreement(params: {
