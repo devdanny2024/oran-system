@@ -307,6 +307,8 @@ export default function ProjectDetailPage() {
     (onboarding?.selectedFeatures as string[] | undefined) ?? undefined;
   const allDocumentsAccepted =
     agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
+  const nextPayableMilestone =
+    milestones.find((m) => m.status === 'PENDING') ?? null;
 
   return (
     <div className="space-y-6">
@@ -393,8 +395,8 @@ export default function ProjectDetailPage() {
           <h2 className="text-sm font-semibold">Project summary & payment</h2>
           <p className="text-xs text-muted-foreground">
             Review your overall project cost and the next milestone payment.
-            Payment integration is not yet live, but this button lets us
-            simulate milestone payments and track progress.
+            When you click &quot;Make payment now&quot; you&apos;ll be redirected
+            to Paystack&apos;s secure checkout using your selected payment plan.
           </p>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs">
             <div className="space-y-1">
@@ -531,8 +533,6 @@ export default function ProjectDetailPage() {
           </div>
         </Card>
       )}
-      const nextPayableMilestone =
-        milestones.find((m) => m.status === 'PENDING') ?? null;
 
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between">
