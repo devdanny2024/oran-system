@@ -173,7 +173,7 @@ export class AgreementsController {
     doc
       .fontSize(12)
       .fillColor('#555555')
-      .text('Project Agreement', { align: 'left' })
+      .text('Project Agreement v2', { align: 'left' })
       .moveDown(1.5)
       .fillColor('#000000');
 
