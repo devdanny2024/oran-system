@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { PaymentPlanService } from './payment-plan.service';
 import { PaymentPlanController } from './payment-plan.controller';
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
+import { MilestonesModule } from '../milestones/milestones.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, MilestonesModule],
   providers: [PaymentPlanService],
   controllers: [PaymentPlanController],
   exports: [PaymentPlanService],
 })
 export class PaymentPlanModule {}
-

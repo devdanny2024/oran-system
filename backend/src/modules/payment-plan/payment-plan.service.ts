@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { PaymentPlanType, ProjectStatus } from '@prisma/client';
+import { MilestonesService } from '../milestones/milestones.service';
 
 @Injectable()
 export class PaymentPlanService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly milestones: MilestonesService,
+  ) {}
 
   async getForProject(projectId: string) {
     const plan = await (this.prisma as any).paymentPlan.findUnique({
@@ -47,7 +51,10 @@ export class PaymentPlanService {
       return plan;
     });
 
+    // Generate or refresh milestone breakdown for this project
+    // based on the chosen payment plan and selected quote.
+    await this.milestones.createForPaymentPlan(projectId, type);
+
     return updated;
   }
 }
-

@@ -37,6 +37,7 @@ model Project {
   quotes      Quote[]
   agreements  ProjectAgreement[] @relation("ProjectAgreements")
   paymentPlan PaymentPlan?       @relation("ProjectPaymentPlan")
+  milestones  ProjectMilestone[] @relation("ProjectMilestones")
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
@@ -77,6 +78,8 @@ model Trip {
   id            String        @id @default(cuid())
   project       Project       @relation(fields: [projectId], references: [id])
   projectId     String
+  milestone     ProjectMilestone? @relation(fields: [milestoneId], references: [id])
+  milestoneId   String?
   technician    User?         @relation("TechnicianTrips", fields: [technicianId], references: [id])
   technicianId  String?
   status        TripStatus    @default(SCHEDULED)
@@ -146,6 +149,23 @@ model PaymentPlan {
   updatedAt  DateTime         @updatedAt
 }
 
+model ProjectMilestone {
+  id          String           @id @default(cuid())
+  project     Project          @relation("ProjectMilestones", fields: [projectId], references: [id])
+  projectId   String
+  planType    PaymentPlanType
+  index       Int
+  title       String
+  description String?
+  percentage  Int
+  amount      Decimal
+  itemsJson   Json
+  status      MilestoneStatus  @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  trips       Trip[]
+}
+
 enum UserRole {
   CUSTOMER
   TECHNICIAN
@@ -203,4 +223,11 @@ enum AgreementType {
 enum PaymentPlanType {
   MILESTONE_3
   EIGHTY_TEN_TEN
+}
+
+enum MilestoneStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
 }

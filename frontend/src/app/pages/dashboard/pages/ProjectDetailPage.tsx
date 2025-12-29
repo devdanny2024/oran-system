@@ -77,6 +77,17 @@ export default function ProjectDetailPage() {
     'MILESTONE_3' | 'EIGHTY_TEN_TEN' | ''
   >('');
   const [savingPaymentPlan, setSavingPaymentPlan] = useState(false);
+  const [milestones, setMilestones] = useState<
+    {
+      id: string;
+      index: number;
+      title: string;
+      description?: string | null;
+      percentage: number;
+      amount: number;
+      status: 'PENDING' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
+    }[]
+  >([]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -197,6 +208,36 @@ export default function ProjectDetailPage() {
         } catch {
           // best effort; ignore failures here
         }
+
+        // Load milestones (if any) for this project.
+        try {
+          const resMilestones = await fetch(
+            `/api/projects/${projectId}/milestones`,
+          );
+          const isJsonMilestones =
+            resMilestones.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const bodyMilestones = isJsonMilestones
+            ? await resMilestones.json()
+            : await resMilestones.text();
+          if (resMilestones.ok) {
+            setMilestones(
+              ((bodyMilestones as any)?.items ?? []).map((m: any) => ({
+                id: m.id as string,
+                index: m.index as number,
+                title: m.title as string,
+                description: (m.description as string) ?? null,
+                percentage: m.percentage as number,
+                amount: Number(m.amount ?? 0),
+                status: m.status as any,
+              })),
+            );
+          }
+        } catch {
+          // ignore
+        }
       } catch (error) {
         const message =
           error instanceof Error
@@ -265,6 +306,47 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </Card>
+
+      {milestones.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Milestone breakdown</h2>
+          <p className="text-xs text-muted-foreground">
+            ORAN has broken your project into three milestones with their own
+            amounts. As you move into operations, we&apos;ll track each
+            milestone&apos;s progress here.
+          </p>
+          <div className="space-y-2 text-xs">
+            {milestones.map((m) => (
+              <div
+                key={m.id}
+                className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border rounded-md px-3 py-2"
+              >
+                <div>
+                  <p className="font-medium text-foreground">
+                    Milestone {m.index}: {m.title}
+                  </p>
+                  {m.description && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {m.description}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-[11px] md:text-xs">
+                  <span className="text-muted-foreground">
+                    {m.percentage}% of project
+                  </span>
+                  <span className="font-semibold text-primary">
+                    ₦{m.amount.toLocaleString()}
+                  </span>
+                  <span className="text-muted-foreground capitalize">
+                    Status: {m.status.toLowerCase().replace(/_/g, ' ')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between">
