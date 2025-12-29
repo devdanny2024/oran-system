@@ -313,7 +313,7 @@ export default function ProjectDetailPage() {
                         )
                       }
                     >
-                      View PDF
+                      {accepted ? 'View signed copy' : 'View PDF'}
                     </Button>
                     <Button
                       size="sm"
@@ -363,23 +363,15 @@ export default function ProjectDetailPage() {
                           }
 
                           toast.success('Document accepted.');
-                          // Reload agreements to reflect new status.
-                          const resAgreements = await fetch(
-                            `/api/projects/${project.id}/agreements`,
+                          // Mark this agreement as accepted locally so the
+                          // UI updates immediately without clearing the card.
+                          setAgreements((prev) =>
+                            prev.map((a) =>
+                              a.id === agreement.id
+                                ? { ...a, acceptedAt: new Date().toISOString() }
+                                : a,
+                            ),
                           );
-                          const isJsonAgreements =
-                            resAgreements.headers
-                              .get('content-type')
-                              ?.toLowerCase()
-                              .includes('application/json') ?? false;
-                          const bodyAgreements = isJsonAgreements
-                            ? await resAgreements.json()
-                            : await resAgreements.text();
-                          if (resAgreements.ok) {
-                            setAgreements(
-                              ((bodyAgreements as any)?.items ?? []) as any[],
-                            );
-                          }
                         } catch (error) {
                           const message =
                             error instanceof Error
