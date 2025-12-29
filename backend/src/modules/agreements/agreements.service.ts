@@ -8,10 +8,27 @@ export class AgreementsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async listForProject(projectId: string) {
-    const agreements = await (this.prisma as any).projectAgreement.findMany({
+    let agreements = await (this.prisma as any).projectAgreement.findMany({
       where: { projectId },
       orderBy: { createdAt: 'asc' },
     });
+
+    // If no agreements exist yet but the project has progressed to the
+    // documents/payment stages, lazily create them so the customer can sign.
+    if (!agreements.length) {
+      const project = await (this.prisma as any).project.findUnique({
+        where: { id: projectId },
+        select: { status: true },
+      });
+      if (
+        project &&
+        (project.status === ProjectStatus.DOCUMENTS_PENDING ||
+          project.status === ProjectStatus.DOCUMENTS_SIGNED ||
+          project.status === ProjectStatus.PAYMENT_PLAN_SELECTED)
+      ) {
+        agreements = await this.createForProjectIfMissing(projectId);
+      }
+    }
 
     return { items: agreements };
   }
