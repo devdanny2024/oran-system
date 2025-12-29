@@ -137,14 +137,41 @@ export default function ProjectDetailPage() {
             ? await resAgreements.json()
             : await resAgreements.text();
           if (resAgreements.ok) {
-            setAgreements(
+            const items =
               ((bodyAgreements as any)?.items ?? []) as {
                 id: string;
                 type: 'MAINTENANCE' | 'SCOPE_OF_WORK' | 'PAYMENT_TERMS';
                 title: string;
                 acceptedAt?: string | null;
-              }[],
-            );
+              }[];
+            if (
+              items.length === 0 &&
+              (body as any)?.status === 'DOCUMENTS_PENDING'
+            ) {
+              // Fallback: explicitly ask backend to create agreements
+              // in case they were not generated when the quote was selected.
+              const resEnsure = await fetch(
+                `/api/projects/${projectId}/agreements/ensure`,
+                { method: 'POST' },
+              );
+              const isJsonEnsure =
+                resEnsure.headers
+                  .get('content-type')
+                  ?.toLowerCase()
+                  .includes('application/json') ?? false;
+              const bodyEnsure = isJsonEnsure
+                ? await resEnsure.json()
+                : await resEnsure.text();
+              if (resEnsure.ok) {
+                setAgreements(
+                  ((bodyEnsure as any)?.items ?? []) as any[],
+                );
+              } else {
+                setAgreements(items);
+              }
+            } else {
+              setAgreements(items);
+            }
           }
         } catch {
           // best effort; ignore if not yet available

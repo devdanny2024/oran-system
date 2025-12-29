@@ -25,6 +25,13 @@ export class AgreementsController {
     return this.agreementsService.listForProject(projectId);
   }
 
+  @Post('ensure')
+  async ensure(@Param('projectId') projectId: string) {
+    const agreements =
+      await this.agreementsService.createForProjectIfMissing(projectId);
+    return { items: agreements };
+  }
+
   @Post(':agreementId/accept')
   async accept(
     @Param('projectId') projectId: string,
