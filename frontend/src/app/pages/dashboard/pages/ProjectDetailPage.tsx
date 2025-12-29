@@ -88,6 +88,16 @@ export default function ProjectDetailPage() {
       status: 'PENDING' | 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED';
     }[]
   >([]);
+  const [trips, setTrips] = useState<
+    {
+      id: string;
+      status: string;
+      scheduledFor: string;
+      checkInAt?: string | null;
+      checkOutAt?: string | null;
+      notes?: string | null;
+    }[]
+  >([]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -238,6 +248,36 @@ export default function ProjectDetailPage() {
         } catch {
           // ignore
         }
+
+        // Load trips for this project to give a simple
+        // operations view alongside milestones.
+        try {
+          const resTrips = await fetch(
+            `/api/operations/trips?projectId=${projectId}`,
+          );
+          const isJsonTrips =
+            resTrips.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const bodyTrips = isJsonTrips
+            ? await resTrips.json()
+            : await resTrips.text();
+          if (resTrips.ok) {
+            setTrips(
+              ((bodyTrips as any)?.items ?? []).map((t: any) => ({
+                id: t.id as string,
+                status: t.status as string,
+                scheduledFor: t.scheduledFor as string,
+                checkInAt: (t.checkInAt as string) ?? null,
+                checkOutAt: (t.checkOutAt as string) ?? null,
+                notes: (t.notes as string) ?? null,
+              })),
+            );
+          }
+        } catch {
+          // ignore
+        }
       } catch (error) {
         const message =
           error instanceof Error
@@ -347,6 +387,156 @@ export default function ProjectDetailPage() {
           </div>
         </Card>
       )}
+
+      {milestones.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Project summary & payment</h2>
+          <p className="text-xs text-muted-foreground">
+            Review your overall project cost and the next milestone payment.
+            Payment integration is not yet live, but this button lets us
+            simulate milestone payments and track progress.
+          </p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs">
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">Selected quote total</p>
+              {quotes.length > 0 ? (
+                <p>
+                  ₦
+                  {(
+                    quotes.find((q) => q.isSelected)?.total ?? quotes[0].total
+                  ).toLocaleString()}
+                </p>
+              ) : (
+                <p className="text-muted-foreground">No quote selected yet.</p>
+              )}
+              {paymentPlanSelection && (
+                <p className="text-[11px] text-muted-foreground">
+                  Payment plan:{' '}
+                  {paymentPlanSelection === 'MILESTONE_3'
+                    ? '3 milestone payments'
+                    : '80 / 10 / 10 plan'}
+                </p>
+              )}
+            </div>
+            {nextPayableMilestone ? (
+              <div className="flex flex-col md:items-end gap-1 text-xs">
+                <p className="font-medium text-foreground">
+                  Next payment: Milestone {nextPayableMilestone.index}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {nextPayableMilestone.title} ·{' '}
+                  {nextPayableMilestone.percentage}% of project
+                </p>
+                <p className="font-semibold text-primary">
+                  ₦{nextPayableMilestone.amount.toLocaleString()}
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-1"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(
+                        `/api/projects/${project.id}/milestones/${nextPayableMilestone.id}/status`,
+                        {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'COMPLETED' }),
+                        },
+                      );
+
+                      const isJson =
+                        res.headers
+                          .get('content-type')
+                          ?.toLowerCase()
+                          .includes('application/json') ?? false;
+                      const body = isJson ? await res.json() : await res.text();
+
+                      if (!res.ok) {
+                        const message =
+                          typeof body === 'string'
+                            ? body
+                            : body?.message ??
+                              'Unable to mark milestone as paid.';
+                        toast.error(message);
+                        return;
+                      }
+
+                      toast.success(
+                        `Milestone ${nextPayableMilestone.index} marked as paid.`,
+                      );
+                      setMilestones((prev) =>
+                        prev.map((m) =>
+                          m.id === nextPayableMilestone.id
+                            ? { ...m, status: 'COMPLETED' }
+                            : m,
+                        ),
+                      );
+                    } catch (error) {
+                      const message =
+                        error instanceof Error
+                          ? error.message
+                          : 'Unable to mark milestone as paid. Please try again.';
+                      toast.error(message);
+                    }
+                  }}
+                >
+                  Make payment now (simulate)
+                </Button>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                All milestones have been marked as completed for this project.
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {trips.length > 0 && (
+        <Card className="p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Field operations</h2>
+          <p className="text-xs text-muted-foreground">
+            Upcoming and completed technician visits for this project. In the
+            future these will be linked directly to milestones.
+          </p>
+          <div className="space-y-2 text-xs">
+            {trips.map((trip) => (
+              <div
+                key={trip.id}
+                className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border rounded-md px-3 py-2"
+              >
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">
+                    Visit on{' '}
+                    {new Date(trip.scheduledFor).toLocaleString()}
+                  </p>
+                  {trip.notes && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {trip.notes}
+                    </p>
+                  )}
+                </div>
+                <div className="text-[11px] text-muted-foreground md:text-right">
+                  <p>
+                    Status:{' '}
+                    {trip.status.toLowerCase().replace(/_/g, ' ')}
+                  </p>
+                  {trip.checkInAt && (
+                    <p>Checked in: {new Date(trip.checkInAt).toLocaleString()}</p>
+                  )}
+                  {trip.checkOutAt && (
+                    <p>
+                      Checked out: {new Date(trip.checkOutAt).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+      const nextPayableMilestone =
+        milestones.find((m) => m.status === 'PENDING') ?? null;
 
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between">

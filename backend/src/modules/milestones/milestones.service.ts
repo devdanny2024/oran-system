@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { MilestoneStatus, PaymentPlanType } from '@prisma/client';
 import { AiService } from '../../infrastructure/ai/ai.service';
@@ -26,6 +26,27 @@ export class MilestonesService {
     });
 
     return { items: milestones };
+  }
+
+  async updateStatus(
+    projectId: string,
+    milestoneId: string,
+    status: MilestoneStatus,
+  ) {
+    const milestone = await (this.prisma as any).projectMilestone.findFirst({
+      where: { id: milestoneId, projectId },
+    });
+
+    if (!milestone) {
+      throw new NotFoundException('Milestone not found for this project.');
+    }
+
+    const updated = await (this.prisma as any).projectMilestone.update({
+      where: { id: milestoneId },
+      data: { status },
+    });
+
+    return updated;
   }
 
   async createForPaymentPlan(projectId: string, planType: PaymentPlanType) {
@@ -225,4 +246,3 @@ export class MilestonesService {
     }));
   }
 }
-
