@@ -680,7 +680,7 @@ export default function ProjectDetailPage() {
           <h2 className="text-sm font-semibold">Payment plan</h2>
           <span className="text-xs text-muted-foreground">
             {project.status === 'PAYMENT_PLAN_SELECTED'
-              ? 'Payment plan selected'
+              ? 'Payment plan selected (you can still change it)'
               : allDocumentsAccepted || project.status === 'DOCUMENTS_SIGNED'
                 ? 'Choose your preferred payment style'
                 : 'Available after you accept all documents'}
@@ -814,10 +814,10 @@ export default function ProjectDetailPage() {
                   }
                 }}
               >
-                {project.status === 'PAYMENT_PLAN_SELECTED'
-                  ? 'Payment plan selected'
-                  : savingPaymentPlan
-                    ? 'Saving...'
+                {savingPaymentPlan
+                  ? 'Saving...'
+                  : project.status === 'PAYMENT_PLAN_SELECTED'
+                    ? 'Update payment plan'
                     : 'I agree to this payment plan'}
               </Button>
             </div>
