@@ -764,10 +764,7 @@ export default function ProjectDetailPage() {
               <Button
                 size="sm"
                 disabled={
-                  savingPaymentPlan ||
-                  !effectivePaymentPlanSelection ||
-                  (!allDocumentsAccepted &&
-                    project.status !== 'DOCUMENTS_SIGNED')
+                  savingPaymentPlan || !effectivePaymentPlanSelection
                 }
                 onClick={async () => {
                   const selection =
