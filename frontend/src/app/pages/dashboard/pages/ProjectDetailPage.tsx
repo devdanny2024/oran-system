@@ -309,6 +309,11 @@ export default function ProjectDetailPage() {
     agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
   const nextPayableMilestone =
     milestones.find((m) => m.status === 'PENDING') ?? null;
+  const effectivePaymentPlanSelection =
+    (paymentPlanSelection || paymentPlan?.type || '') as
+      | 'MILESTONE_3'
+      | 'EIGHTY_TEN_TEN'
+      | '';
 
   return (
     <div className="space-y-6">
@@ -708,7 +713,7 @@ export default function ProjectDetailPage() {
                     project.status !== 'DOCUMENTS_SIGNED' &&
                     project.status !== 'PAYMENT_PLAN_SELECTED'
                   }
-                  checked={paymentPlanSelection === 'MILESTONE_3'}
+                  checked={effectivePaymentPlanSelection === 'MILESTONE_3'}
                   onChange={() => setPaymentPlanSelection('MILESTONE_3')}
                 />
                 <div>
@@ -734,7 +739,7 @@ export default function ProjectDetailPage() {
                     project.status !== 'DOCUMENTS_SIGNED' &&
                     project.status !== 'PAYMENT_PLAN_SELECTED'
                   }
-                  checked={paymentPlanSelection === 'EIGHTY_TEN_TEN'}
+                  checked={effectivePaymentPlanSelection === 'EIGHTY_TEN_TEN'}
                   onChange={() => setPaymentPlanSelection('EIGHTY_TEN_TEN')}
                 />
                 <div>
@@ -760,12 +765,14 @@ export default function ProjectDetailPage() {
                 size="sm"
                 disabled={
                   savingPaymentPlan ||
-                  !paymentPlanSelection ||
+                  !effectivePaymentPlanSelection ||
                   (!allDocumentsAccepted &&
                     project.status !== 'DOCUMENTS_SIGNED')
                 }
                 onClick={async () => {
-                  if (!paymentPlanSelection) {
+                  const selection =
+                    paymentPlanSelection || paymentPlan?.type || '';
+                  if (!selection) {
                     toast.error('Please select a payment style first.');
                     return;
                   }
@@ -776,7 +783,7 @@ export default function ProjectDetailPage() {
                       {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: paymentPlanSelection }),
+                        body: JSON.stringify({ type: selection }),
                       },
                     );
 
@@ -799,6 +806,9 @@ export default function ProjectDetailPage() {
 
                     toast.success('Payment plan saved.');
                     setPaymentPlan(body as any);
+                    if ((body as any)?.type) {
+                      setPaymentPlanSelection((body as any).type);
+                    }
                     setProject({
                       ...project,
                       status: 'PAYMENT_PLAN_SELECTED',
