@@ -84,6 +84,18 @@ export class ProjectsService {
         where: { projectId: id },
       });
 
+      await tx.projectAgreement.deleteMany({
+        where: { projectId: id },
+      });
+
+      await tx.projectMilestone.deleteMany({
+        where: { projectId: id },
+      });
+
+      await tx.paymentPlan.deleteMany({
+        where: { projectId: id },
+      });
+
       await tx.project.delete({
         where: { id },
       });
