@@ -28,7 +28,10 @@ export async function GET(
       return NextResponse.json({ message }, { status: response.status });
     }
 
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(
+      { backendBaseUrl: BACKEND_API_BASE_URL, ...(data as any) },
+      { status: response.status },
+    );
   } catch (error) {
     const message =
       error instanceof Error
@@ -37,4 +40,3 @@ export async function GET(
     return NextResponse.json({ message }, { status: 502 });
   }
 }
-
