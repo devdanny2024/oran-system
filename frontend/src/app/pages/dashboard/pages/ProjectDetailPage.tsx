@@ -810,6 +810,40 @@ export default function ProjectDetailPage() {
                       ...project,
                       status: 'PAYMENT_PLAN_SELECTED',
                     });
+
+                    // Refresh milestones so the next payable milestone
+                    // matches the newly saved payment plan.
+                    try {
+                      const resMilestones = await fetch(
+                        `/api/projects/${project.id}/milestones`,
+                      );
+                      const isJsonMilestones =
+                        resMilestones.headers
+                          .get('content-type')
+                          ?.toLowerCase()
+                          .includes('application/json') ?? false;
+                      const bodyMilestones = isJsonMilestones
+                        ? await resMilestones.json()
+                        : await resMilestones.text();
+                      if (resMilestones.ok) {
+                        setMilestones(
+                          ((bodyMilestones as any)?.items ?? []).map(
+                            (m: any) => ({
+                              id: m.id as string,
+                              index: m.index as number,
+                              title: m.title as string,
+                              description: (m.description as string) ?? null,
+                              percentage: m.percentage as number,
+                              amount: Number(m.amount ?? 0),
+                              status: m.status as any,
+                            }),
+                          ),
+                        );
+                      }
+                    } catch {
+                      // best effort; if this fails, the user can refresh
+                      // the page to see updated milestones.
+                    }
                   } catch (error) {
                     const message =
                       error instanceof Error
