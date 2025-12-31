@@ -51,9 +51,11 @@ export default function PaystackCallbackPage() {
           return;
         }
 
-        setMessage('Payment verified successfully. Redirecting you back...');
+        setMessage(
+          'Payment verified successfully. Redirecting you to your operations timeline...',
+        );
         setTimeout(() => {
-          router.push(`/dashboard/projects/${projectId}`);
+          router.push(`/dashboard/operations?projectId=${projectId}`);
         }, 2000);
       } catch (err) {
         setError(

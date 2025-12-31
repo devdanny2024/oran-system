@@ -1,8 +1,9 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { MilestoneStatus, PaymentPlanType } from '@prisma/client';
+import { MilestoneStatus, PaymentPlanType, TripStatus } from '@prisma/client';
 import { AiService } from '../../infrastructure/ai/ai.service';
 import { PaystackService } from '../../infrastructure/paystack/paystack.service';
+import { EmailService } from '../../infrastructure/email/email.service';
 
 interface MilestonePlan {
   milestones: {
@@ -19,6 +20,7 @@ export class MilestonesService {
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
     private readonly paystack: PaystackService,
+    private readonly email: EmailService,
   ) {}
 
   async listForProject(projectId: string) {
@@ -149,10 +151,73 @@ export class MilestonesService {
       data: { status: MilestoneStatus.COMPLETED },
     });
 
+    // After a successful payment and milestone completion, create a
+    // tentative site visit in the operations schedule and notify the customer.
+    await this.createOperationsVisitAndNotify(projectId, milestoneId);
+
     return {
       milestoneId,
       status: updated.status,
     };
+  }
+
+  private async createOperationsVisitAndNotify(
+    projectId: string,
+    milestoneId: string,
+  ) {
+    const project = await (this.prisma as any).project.findUnique({
+      where: { id: projectId },
+      include: {
+        user: true,
+        onboarding: true,
+      },
+    });
+
+    if (!project || !project.user) {
+      return;
+    }
+
+    const now = new Date();
+    const scheduledFor = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 3,
+      10,
+      0,
+      0,
+      0,
+    );
+
+    await (this.prisma as any).trip.create({
+      data: {
+        projectId,
+        milestoneId,
+        status: TripStatus.SCHEDULED,
+        scheduledFor,
+        notes:
+          'Auto‑scheduled visit after milestone payment. Our team will confirm details within 24 hours.',
+      },
+    });
+
+    const projectName = project.name as string;
+    const customerName =
+      (project.user.name as string | null) ?? project.user.email;
+    const siteAddress =
+      (project.onboarding?.siteAddress as string | null) ?? 'Not provided';
+
+    const frontendBase = this.email.getFrontendBaseUrl();
+    const operationsUrl = `${frontendBase}/dashboard/operations?projectId=${encodeURIComponent(
+      projectId,
+    )}`;
+
+    await this.email.sendOperationsScheduleEmail({
+      to: project.user.email as string,
+      name: customerName,
+      projectName,
+      siteAddress,
+      scheduledFor,
+      operationsUrl,
+    });
   }
 
   async createForPaymentPlan(projectId: string, planType: PaymentPlanType) {

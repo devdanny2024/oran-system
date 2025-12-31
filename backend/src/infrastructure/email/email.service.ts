@@ -151,6 +151,51 @@ export class EmailService {
     });
   }
 
+  async sendOperationsScheduleEmail(params: {
+    to: string;
+    name?: string | null;
+    projectName: string;
+    siteAddress: string;
+    scheduledFor: Date;
+    operationsUrl: string;
+  }) {
+    const greetingName = params.name?.trim() || 'there';
+
+    const when = params.scheduledFor.toLocaleString('en-NG', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const html = this.buildBaseTemplate({
+      title: 'Your ORAN installation is now in operations',
+      intro: `Hi ${greetingName}, your payment has been received and your project is moving into the operations phase.`,
+      bodyLines: [
+        `Project: <strong>${params.projectName}</strong>`,
+        `Site address: ${params.siteAddress}`,
+        `We have created a tentative site visit in your operations schedule so you have a clear idea of when our team will be on site.`,
+        `Estimated next technician visit: <strong>${when}</strong>. Our team will review this within the next 24 hours and update you if the date or time needs to change.`,
+        'You can always see the latest visit plan, trip history and work progress from your ORAN dashboard.',
+      ],
+      action: {
+        label: 'View operations timeline',
+        url: params.operationsUrl,
+      },
+      footer:
+        'If you have any questions about your visit schedule, simply reply to this email or contact ORAN support.',
+    });
+
+    await this.sendEmail({
+      to: params.to,
+      subject: 'ORAN operations schedule created for your project',
+      html,
+    });
+  }
+
   private buildBaseTemplate(content: {
     title: string;
     intro: string;
