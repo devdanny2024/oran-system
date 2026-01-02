@@ -310,6 +310,177 @@ export default function ProjectDetailPage() {
     void load();
   }, [projectId, router]);
 
+  const flowToastShownRef = useRef(false);
+
+  useEffect(() => {
+    if (!project || flowToastShownRef.current) return;
+
+    const selectedQuote = quotes.find((q) => q.isSelected) ?? null;
+
+    type NextStep = {
+      label: string;
+      cta: string;
+      action: () => void;
+    };
+
+    let step: NextStep | null = null;
+
+    if (!project.onboarding || project.status === 'ONBOARDING') {
+      step = {
+        label:
+          'Finish your onboarding so ORAN can generate tailored quotes for this project.',
+        cta: 'Continue onboarding',
+        action: () => {
+          router.push('/onboarding');
+        },
+      };
+    } else if (!selectedQuote) {
+      if (quotes.length > 0) {
+        step = {
+          label:
+            'Open a quote to review Economy, Standard or Luxury options and pick a starting point.',
+          cta: 'Review quote options',
+          action: () => {
+            router.push(`/dashboard/quotes/${quotes[0].id}`);
+          },
+        };
+      }
+    } else {
+      const documentsAccepted =
+        agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
+      const nextMilestone =
+        milestones.find((m) => m.status === 'PENDING') ?? null;
+      const effectiveSelection =
+        (paymentPlanSelection || paymentPlan?.type || '') as
+          | 'MILESTONE_3'
+          | 'EIGHTY_TEN_TEN'
+          | '';
+
+      if (!documentsAccepted) {
+        step = {
+          label:
+            'Review and accept your installation, scope of work and payment terms documents.',
+          cta: 'Review documents',
+          action: () => {
+            const el =
+              typeof document !== 'undefined'
+                ? document.getElementById('project-documents-section')
+                : null;
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          },
+        };
+      } else if (!effectiveSelection) {
+        step = {
+          label:
+            'Choose your payment style so ORAN knows how to structure milestones and invoices.',
+          cta: 'Choose payment plan',
+          action: () => {
+            const el =
+              typeof document !== 'undefined'
+                ? document.getElementById('payment-plan-section')
+                : null;
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          },
+        };
+      } else if (nextMilestone) {
+        step = {
+          label: `Pay milestone ${nextMilestone.index} to move this project into live operations.`,
+          cta: 'Pay next milestone',
+          action: async () => {
+            try {
+              const res = await fetch(
+                `/api/projects/${project.id}/milestones/${nextMilestone.id}/paystack/initialize`,
+                { method: 'POST' },
+              );
+
+              const isJson =
+                res.headers
+                  .get('content-type')
+                  ?.toLowerCase()
+                  .includes('application/json') ?? false;
+              const body = isJson ? await res.json() : await res.text();
+
+              if (!res.ok) {
+                const message =
+                  typeof body === 'string'
+                    ? body
+                    : body?.message ??
+                      'Unable to start payment. Please try again.';
+                toast.error(message);
+                return;
+              }
+
+              const authorizationUrl = (body as any)
+                ?.authorizationUrl as string | undefined;
+              if (!authorizationUrl) {
+                toast.error(
+                  'Payment initialised but no authorization URL was returned.',
+                );
+                return;
+              }
+
+              window.location.href = authorizationUrl;
+            } catch (error) {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to start payment. Please try again.';
+              toast.error(message);
+            }
+          },
+        };
+      }
+    }
+
+    if (!step) return;
+
+    flowToastShownRef.current = true;
+
+    toast.custom(
+      (id) => (
+        <div className="rounded-md border bg-background px-4 py-3 shadow-lg text-xs md:text-sm max-w-sm flex items-start gap-3">
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Next step</p>
+            <p className="text-muted-foreground mt-1">{step!.label}</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Button
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => {
+                toast.dismiss(id);
+                step!.action();
+              }}
+            >
+              {step!.cta}
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 text-muted-foreground"
+              onClick={() => toast.dismiss(id)}
+            >
+              Ã—
+            </Button>
+          </div>
+        </div>
+      ),
+      { duration: 12000 },
+    );
+  }, [
+    project,
+    quotes,
+    agreements,
+    paymentPlan,
+    paymentPlanSelection,
+    milestones,
+    router,
+  ]);
+
   if (loading || !project) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
