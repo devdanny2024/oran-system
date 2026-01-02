@@ -17,6 +17,7 @@ import { CacheModule } from '../../infrastructure/cache/cache.module';
 import { EmailModule } from '../../infrastructure/email/email.module';
 import { AiModule } from '../../infrastructure/ai/ai.module';
 import { PaystackModule } from '../../infrastructure/paystack/paystack.module';
+import { RevenueModule } from '../revenue/revenue.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PaystackModule } from '../../infrastructure/paystack/paystack.module';
     EmailModule,
     AiModule,
     PaystackModule,
+    RevenueModule,
     AuthModule,
     ProjectsModule,
     OnboardingModule,

@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '../../components/ui/card';
@@ -23,14 +24,28 @@ type Project = {
   createdAt: string;
 };
 
-const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN'];
+type RevenueProject = {
+  projectId: string;
+  projectName: string;
+  planType: 'MILESTONE_3' | 'EIGHTY_TEN_TEN';
+  totalAmount: number;
+  collectedAmount: number;
+};
+
+const ALLOWED_ROLES = ['ADMIN'];
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<OranUser | null>(null);
   const [checking, setChecking] = useState(true);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+
+  const [revenueLoading, setRevenueLoading] = useState(false);
+  const [totalCollected, setTotalCollected] = useState(0);
+  const [totalProjected, setTotalProjected] = useState(0);
+  const [revenuePerProject, setRevenuePerProject] = useState<RevenueProject[]>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -98,7 +113,48 @@ export default function AdminDashboard() {
       }
     };
 
+    const loadRevenue = async () => {
+      try {
+        setRevenueLoading(true);
+        const res = await fetch('/api/admin/revenue/overview');
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load revenue overview.';
+          toast.error(message);
+          return;
+        }
+
+        setTotalCollected(Number((body as any)?.totalCollected ?? 0));
+        setTotalProjected(Number((body as any)?.totalProjected ?? 0));
+        setRevenuePerProject(
+          (((body as any)?.perProject ?? []) as RevenueProject[]).map((p) => ({
+            ...p,
+            totalAmount: Number(p.totalAmount ?? 0),
+            collectedAmount: Number(p.collectedAmount ?? 0),
+          })),
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load revenue overview. Please try again.';
+        toast.error(message);
+      } finally {
+        setRevenueLoading(false);
+      }
+    };
+
     void loadProjects();
+    void loadRevenue();
   }, [user]);
 
   const totalProjects = projects.length;
@@ -126,7 +182,7 @@ export default function AdminDashboard() {
             <div>
               <p className="font-semibold text-foreground">ORAN Admin Console</p>
               <p className="text-xs text-muted-foreground">
-                For Admin & Technician users only
+                Admin view for projects, operations and revenue.
               </p>
             </div>
           </div>
@@ -140,11 +196,17 @@ export default function AdminDashboard() {
               </p>
             </div>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.localStorage.removeItem('oran_token');
+                  window.localStorage.removeItem('oran_user');
+                }
+                router.push('/login');
+              }}
             >
-              Go to customer dashboard
+              Log out
             </Button>
           </div>
         </div>
@@ -156,7 +218,7 @@ export default function AdminDashboard() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Overview</h1>
             <p className="text-sm text-muted-foreground">
-              Quick view of ORAN projects and operations.
+              Quick view of ORAN projects, operations and revenue.
             </p>
           </div>
           <Button
@@ -168,7 +230,8 @@ export default function AdminDashboard() {
           </Button>
         </div>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        {/* Top cards */}
+        <section className="grid gap-4 md:grid-cols-4">
           <Card className="p-4 space-y-2">
             <p className="text-xs font-semibold uppercase text-muted-foreground">
               Projects
@@ -202,10 +265,26 @@ export default function AdminDashboard() {
               Backend on EC2 + Postgres are online.
             </p>
           </Card>
+
+          <Card className="p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">
+              Revenue (collected / projected)
+            </p>
+            <p className="text-lg font-bold text-foreground">
+              {revenueLoading
+                ? '…'
+                : `₦${totalCollected.toLocaleString()} / ₦${totalProjected.toLocaleString()}`}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Sum of all completed milestone payments compared with total
+              milestone values across projects.
+            </p>
+          </Card>
         </section>
 
         <Separator />
 
+        {/* Recent projects + admin tools */}
         <section className="grid gap-4 md:grid-cols-2 items-start">
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -222,7 +301,8 @@ export default function AdminDashboard() {
             <div className="border rounded-md divide-y">
               {projects.length === 0 && !projectsLoading ? (
                 <div className="p-3 text-xs text-muted-foreground">
-                  No projects yet. Complete onboarding as a customer to see them here.
+                  No projects yet. Complete onboarding as a customer to see
+                  them here.
                 </div>
               ) : (
                 projects.slice(0, 5).map((project) => (
@@ -260,20 +340,112 @@ export default function AdminDashboard() {
             <div>
               <h2 className="text-sm font-semibold mb-1">Admin tools</h2>
               <p className="text-xs text-muted-foreground mb-3">
-                Future controls for product catalog, pricing, and approvals.
+                Manage technicians, review projects and cross‑check revenue.
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="self-start"
-              disabled
-            >
-              Coming soon
-            </Button>
+            <div className="flex flex-wrap gap-2 mt-3 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/admin/technicians')}
+              >
+                Manage technicians
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/admin/projects')}
+              >
+                All projects
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/dashboard')}
+              >
+                Customer dashboard
+              </Button>
+            </div>
+          </Card>
+        </section>
+
+        {/* Revenue per project */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Revenue by project</h2>
+          <Card className="p-4 text-xs">
+            {revenueLoading ? (
+              <p className="text-muted-foreground">Loading revenue…</p>
+            ) : revenuePerProject.length === 0 ? (
+              <p className="text-muted-foreground">
+                No revenue data yet. Once customers start paying milestones,
+                collections will appear here.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b text-[11px] text-muted-foreground">
+                      <th className="text-left py-2 pr-3 font-medium">
+                        Project
+                      </th>
+                      <th className="text-left py-2 pr-3 font-medium">
+                        Plan
+                      </th>
+                      <th className="text-right py-2 pr-3 font-medium">
+                        Collected
+                      </th>
+                      <th className="text-right py-2 pr-3 font-medium">
+                        Projected
+                      </th>
+                      <th className="text-right py-2 font-medium">% Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {revenuePerProject.map((p) => {
+                      const pct =
+                        p.totalAmount > 0
+                          ? Math.round(
+                              (p.collectedAmount / p.totalAmount) * 100,
+                            )
+                          : 0;
+                      return (
+                        <tr
+                          key={p.projectId}
+                          className="border-b last:border-b-0 hover:bg-muted/40 cursor-pointer"
+                          onClick={() =>
+                            router.push(`/admin/projects/${p.projectId}`)
+                          }
+                        >
+                          <td className="py-2 pr-3">
+                            <span className="font-medium text-foreground">
+                              {p.projectName}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3 capitalize text-muted-foreground">
+                            {p.planType === 'MILESTONE_3'
+                              ? '3 milestones'
+                              : '80 / 10 / 10'}
+                          </td>
+                          <td className="py-2 pr-3 text-right">
+                            ₦{p.collectedAmount.toLocaleString()}
+                          </td>
+                          <td className="py-2 pr-3 text-right">
+                            ₦{p.totalAmount.toLocaleString()}
+                          </td>
+                          <td className="py-2 text-right text-muted-foreground">
+                            {pct}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </section>
       </main>
     </div>
   );
 }
+

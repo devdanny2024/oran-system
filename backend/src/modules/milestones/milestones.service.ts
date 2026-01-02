@@ -66,6 +66,21 @@ export class MilestonesService {
       throw new BadRequestException('Milestone is already completed.');
     }
 
+    // Enforce that only the next milestone in sequence can be paid.
+    const nextPending = await (this.prisma as any).projectMilestone.findFirst({
+      where: {
+        projectId,
+        status: { not: MilestoneStatus.COMPLETED },
+      },
+      orderBy: { index: 'asc' },
+    });
+
+    if (nextPending && nextPending.id !== milestoneId) {
+      throw new BadRequestException(
+        'You can only pay the next milestone in sequence for this project.',
+      );
+    }
+
     const project = await (this.prisma as any).project.findUnique({
       where: { id: projectId },
       include: { user: true },
@@ -88,9 +103,13 @@ export class MilestonesService {
 
     const reference = `oran_${projectId}_${milestoneId}_${Date.now()}`;
 
-    const callbackBase =
-      (process.env.PAYSTACK_CALLBACK_BASE_URL as string | undefined) ??
-      'http://localhost:3000/paystack/callback';
+    // Prefer an explicit callback base URL from the environment; otherwise
+    // fall back to the configured frontend base URL so production payments
+    // never point to localhost.
+    const explicitCallbackBase =
+      process.env.PAYSTACK_CALLBACK_BASE_URL as string | undefined;
+    const fallbackCallbackBase = `${this.email.getFrontendBaseUrl()}/paystack/callback`;
+    const callbackBase = explicitCallbackBase || fallbackCallbackBase;
 
     const callbackUrl = `${callbackBase}?projectId=${encodeURIComponent(
       projectId,
@@ -188,7 +207,7 @@ export class MilestonesService {
       0,
     );
 
-    await (this.prisma as any).trip.create({
+    const trip = await (this.prisma as any).trip.create({
       data: {
         projectId,
         milestoneId,
@@ -209,6 +228,28 @@ export class MilestonesService {
     const operationsUrl = `${frontendBase}/dashboard/operations?projectId=${encodeURIComponent(
       projectId,
     )}`;
+
+    // Seed a standard operations task list for this auto-scheduled
+    // visit so technicians can track wiring → installation → integration.
+    await (this.prisma as any).tripTask.createMany({
+      data: [
+        {
+          tripId: trip.id,
+          label: 'Wiring & infrastructure preparation',
+          sequence: 1,
+        },
+        {
+          tripId: trip.id,
+          label: 'Device installation on site',
+          sequence: 2,
+        },
+        {
+          tripId: trip.id,
+          label: 'Integration, testing & client walkthrough',
+          sequence: 3,
+        },
+      ],
+    });
 
     await this.email.sendOperationsScheduleEmail({
       to: project.user.email as string,

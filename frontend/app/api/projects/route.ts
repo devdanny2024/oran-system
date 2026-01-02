@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_API_BASE_URL =
-  process.env.BACKEND_API_BASE_URL ||
-  'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
+  process.env.BACKEND_API_BASE_URL || 'https://api.ore-supply.shop';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -63,4 +62,3 @@ export async function GET() {
     return NextResponse.json({ message }, { status: 502 });
   }
 }
-

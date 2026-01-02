@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Calendar } from "../../../src/app/components/ui/calendar";
 import { Card } from "../../../src/app/components/ui/card";
 import { Badge } from "../../../src/app/components/ui/badge";
 import { Button } from "../../../src/app/components/ui/button";
 import { Progress } from "../../../src/app/components/ui/progress";
 import { Textarea } from "../../../src/app/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "../../../src/app/components/ui/radio-group";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "../../../src/app/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -16,23 +20,136 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../../src/app/components/ui/dialog";
-import { CalendarIcon, CheckCircle2, Clock3, Circle, FileText } from "lucide-react";
+import {
+  CalendarIcon,
+  CheckCircle2,
+  Clock3,
+  Circle,
+  FileText,
+} from "lucide-react";
+
+type Trip = {
+  id: string;
+  projectId: string;
+  technicianId: string | null;
+  technician?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  status: "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | string;
+  scheduledFor: string;
+  checkInAt?: string | null;
+  checkOutAt?: string | null;
+  notes?: string | null;
+};
 
 export default function Page() {
+  const searchParams = useSearchParams();
+  const projectId = searchParams?.get("projectId") ?? null;
+
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState("morning");
   const [selectedTechnician, setSelectedTechnician] = useState("john");
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [tripsError, setTripsError] = useState<string | null>(null);
 
-  const allocatedTrips = 5;
-  const usedTrips = 3;
-  const remainingTrips = allocatedTrips - usedTrips;
-  const usedPercentage = (usedTrips / allocatedTrips) * 100;
+  useEffect(() => {
+    if (!projectId) {
+      setTrips([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const load = async () => {
+      try {
+        setLoadingTrips(true);
+        setTripsError(null);
+
+        const res = await fetch(
+          `/api/operations/trips?projectId=${encodeURIComponent(projectId)}`,
+          { signal: controller.signal },
+        );
+
+        const contentType = res.headers.get("content-type")?.toLowerCase();
+        const isJson = contentType?.includes("application/json");
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === "string"
+              ? body
+              : body?.message ?? "Unable to load operations trips.";
+          setTripsError(message);
+          setTrips([]);
+          return;
+        }
+
+        const items = (body?.items ?? []) as Trip[];
+        setTrips(items);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to reach ORAN operations service.";
+        setTripsError(message);
+        setTrips([]);
+      } finally {
+        setLoadingTrips(false);
+      }
+    };
+
+    void load();
+
+    return () => controller.abort();
+  }, [projectId]);
+
+  const { allocatedTrips, usedTrips, remainingTrips, usedPercentage } =
+    useMemo(() => {
+      const allocated = trips.length || 0;
+      const used = trips.filter((t) => t.status === "COMPLETED").length;
+      const remaining = Math.max(allocated - used, 0);
+      const percentage = allocated > 0 ? (used / allocated) * 100 : 0;
+
+      return {
+        allocatedTrips: allocated,
+        usedTrips: used,
+        remainingTrips: remaining,
+        usedPercentage: percentage,
+      };
+    }, [trips]);
+
+  const upcomingTrip = useMemo(() => {
+    const candidates = trips.filter((t) =>
+      ["SCHEDULED", "IN_PROGRESS"].includes(t.status),
+    );
+    return candidates.sort(
+      (a, b) =>
+        new Date(a.scheduledFor).getTime() -
+        new Date(b.scheduledFor).getTime(),
+    )[0];
+  }, [trips]);
+
+  const completedTrips = useMemo(
+    () =>
+      trips
+        .filter((t) => t.status === "COMPLETED")
+        .sort(
+          (a, b) =>
+            new Date(b.checkOutAt ?? b.scheduledFor).getTime() -
+            new Date(a.checkOutAt ?? a.scheduledFor).getTime(),
+        ),
+    [trips],
+  );
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">
-        Operations — Living Room Smart Home
+        Operations {projectId ? "— Project timeline" : ""}
       </h1>
 
       {/* Section 1: Site Trips Summary */}
@@ -41,7 +158,8 @@ export default function Page() {
           <div>
             <h2 className="text-lg font-semibold">Site Trips</h2>
             <p className="text-sm text-muted-foreground">
-              Track allocated, used, and remaining site visits for this project.
+              Track allocated, used, and remaining site visits for this
+              project.
             </p>
           </div>
           <Badge variant="secondary" className="text-xs">
@@ -66,12 +184,19 @@ export default function Page() {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{usedPercentage.toFixed(0)}% Used</span>
+            <span>
+              {allocatedTrips === 0
+                ? "No trips scheduled yet"
+                : `${usedPercentage.toFixed(0)}% Used`}
+            </span>
             <span>
               {usedTrips} / {allocatedTrips} trips
             </span>
           </div>
           <Progress value={usedPercentage} />
+          {tripsError && (
+            <p className="text-[11px] text-red-500">{tripsError}</p>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3 pt-2">
@@ -192,98 +317,98 @@ export default function Page() {
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold">Visit History</h2>
           <Badge variant="outline" className="text-xs">
-            Last updated: May 29, 2024
+            {loadingTrips
+              ? "Loading..."
+              : trips.length > 0
+              ? "Live from operations"
+              : "No visits yet"}
           </Badge>
         </div>
 
         <div className="space-y-4 text-sm">
-          {/* Completed visit 1 */}
-          <div className="space-y-2 border-b pb-4 last:border-0 last:pb-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium">May 29, 2024</p>
-              </div>
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                Completed
-              </Badge>
-            </div>
-            <p className="text-muted-foreground">
-              Technician: John Doe
+          {loadingTrips && (
+            <p className="text-sm text-muted-foreground">
+              Loading operations timeline...
             </p>
-            <p className="text-muted-foreground">
-              Tasks: Camera calibration, climate testing
-            </p>
-            <p className="text-muted-foreground">Duration: 3 hours</p>
-            <div className="flex flex-wrap gap-3 pt-1">
-              <Button variant="outline" size="sm">
-                View Photos (8)
-              </Button>
-              <Button variant="ghost" size="sm">
-                <FileText className="mr-1.5 h-3.5 w-3.5" />
-                View Report
-              </Button>
-            </div>
-          </div>
+          )}
 
-          {/* Completed visit 2 */}
-          <div className="space-y-2 border-b pb-4 last:border-0 last:pb-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium">May 22, 2024</p>
-              </div>
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                Completed
-              </Badge>
-            </div>
-            <p className="text-muted-foreground">
-              Technician: Jane Smith
+          {!loadingTrips && trips.length === 0 && !tripsError && (
+            <p className="text-sm text-muted-foreground">
+              No site visits have been scheduled for this project yet. Once
+              your first milestone is paid, ORAN will create an initial visit
+              here automatically.
             </p>
-            <p className="text-muted-foreground">
-              Tasks: Wiring, device installation
-            </p>
-            <p className="text-muted-foreground">Duration: 6 hours</p>
-            <div className="flex flex-wrap gap-3 pt-1">
-              <Button variant="outline" size="sm">
-                View Photos (15)
-              </Button>
-              <Button variant="ghost" size="sm">
-                <FileText className="mr-1.5 h-3.5 w-3.5" />
-                View Report
-              </Button>
-            </div>
-          </div>
+          )}
 
-          {/* Scheduled visit */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium">June 5, 2024</p>
+          {upcomingTrip && (
+            <div className="space-y-2 border-b pb-4 last:border-0 last:pb-0">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <p className="font-medium">
+                    {new Date(upcomingTrip.scheduledFor).toLocaleString()}
+                  </p>
+                </div>
+                <Badge
+                  variant={
+                    upcomingTrip.status === "IN_PROGRESS"
+                      ? "secondary"
+                      : "outline"
+                  }
+                  className="flex items-center gap-1"
+                >
+                  <Clock3 className="h-3.5 w-3.5" />
+                  {upcomingTrip.status === "IN_PROGRESS"
+                    ? "In progress"
+                    : "Scheduled"}
+                </Badge>
               </div>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Clock3 className="h-3.5 w-3.5" />
-                Scheduled
-              </Badge>
+              <p className="text-muted-foreground">
+                Technician:{" "}
+                {upcomingTrip.technician?.name
+                  ? upcomingTrip.technician.name
+                  : upcomingTrip.technicianId
+                  ? "Assigned technician"
+                  : "Pending assignment"}
+              </p>
+              {upcomingTrip.notes && (
+                <p className="text-muted-foreground">{upcomingTrip.notes}</p>
+              )}
             </div>
-            <p className="text-muted-foreground">
-              Technician: John Doe
-            </p>
-            <p className="text-muted-foreground">
-              Time: 10:00 AM – 2:00 PM
-            </p>
-            <div className="flex flex-wrap gap-3 pt-1">
-              <Button variant="outline" size="sm">
-                Reschedule
-              </Button>
-              <Button variant="ghost" size="sm">
-                Cancel
-              </Button>
+          )}
+
+          {completedTrips.map((trip) => (
+            <div
+              key={trip.id}
+              className="space-y-2 border-b pb-4 last:border-0 last:pb-0"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <p className="font-medium">
+                    {new Date(
+                      trip.checkOutAt ?? trip.scheduledFor,
+                    ).toLocaleString()}
+                  </p>
+                </div>
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Completed
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">
+                Technician:{" "}
+                {trip.technician?.name
+                  ? trip.technician.name
+                  : trip.technicianId
+                  ? "Assigned technician"
+                  : "Technician assignment not recorded"}
+              </p>
+              {trip.notes && (
+                <p className="text-muted-foreground">{trip.notes}</p>
+              )}
             </div>
-          </div>
+          ))}
         </div>
       </Card>
 
@@ -370,7 +495,9 @@ function ProgressRow({
           {icon}
           <p className="font-medium">{label}</p>
         </div>
-        <p className="text-xs text-muted-foreground">{percent}%&nbsp;•&nbsp;{detail}</p>
+        <p className="text-xs text-muted-foreground">
+          {percent}% · {detail}
+        </p>
       </div>
       <Progress value={percent} />
     </div>

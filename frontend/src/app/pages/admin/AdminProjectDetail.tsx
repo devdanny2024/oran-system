@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Card } from '../../components/ui/card';
@@ -31,6 +32,19 @@ type Project = {
 
 type TripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
+type TripTask = {
+  id: string;
+  label: string;
+  sequence: number;
+  isDone: boolean;
+};
+
+type TripPhoto = {
+  id: string;
+  url: string;
+  caption?: string | null;
+};
+
 type Trip = {
   id: string;
   status: TripStatus;
@@ -39,9 +53,18 @@ type Trip = {
   checkOutAt?: string | null;
   notes?: string | null;
   technicianId?: string | null;
+  technician?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  reworkReason?: string | null;
+  reworkRequestedAt?: string | null;
+  tasks?: TripTask[];
+  photos?: TripPhoto[];
 };
 
-const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN'];
+const ALLOWED_ROLES = ['ADMIN'];
 
 export default function AdminProjectDetail() {
   const router = useRouter();
@@ -50,17 +73,21 @@ export default function AdminProjectDetail() {
 
   const [checking, setChecking] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingProject, setLoadingProject] = useState(true);
+
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripsLoading, setTripsLoading] = useState(false);
-  const [creatingTrip, setCreatingTrip] = useState(false);
-  const [scheduledFor, setScheduledFor] = useState('');
-  const [technicianId, setTechnicianId] = useState('');
-  const [notes, setNotes] = useState('');
+
   const [technicians, setTechnicians] = useState<
     { id: string; name: string | null; email: string }[]
   >([]);
   const [techniciansLoading, setTechniciansLoading] = useState(false);
+
+  const [scheduledFor, setScheduledFor] = useState('');
+  const [technicianId, setTechnicianId] = useState('');
+  const [notes, setNotes] = useState('');
+  const [creatingTrip, setCreatingTrip] = useState(false);
+  const [reopeningTripId, setReopeningTripId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -95,16 +122,16 @@ export default function AdminProjectDetail() {
 
     const loadProject = async () => {
       try {
-        setLoading(true);
-        const res = await fetch(`/api/projects/${projectId}`);
+        setLoadingProject(true);
+        const response = await fetch(`/api/projects/${projectId}`);
         const isJson =
-          res.headers
+          response.headers
             .get('content-type')
             ?.toLowerCase()
             .includes('application/json') ?? false;
-        const body = isJson ? await res.json() : await res.text();
+        const body = isJson ? await response.json() : await response.text();
 
-        if (!res.ok) {
+        if (!response.ok) {
           const message =
             typeof body === 'string'
               ? body
@@ -121,24 +148,24 @@ export default function AdminProjectDetail() {
             : 'Unable to load project. Please try again.';
         toast.error(message);
       } finally {
-        setLoading(false);
+        setLoadingProject(false);
       }
     };
 
     const loadTrips = async () => {
       try {
         setTripsLoading(true);
-        const res = await fetch(
+        const response = await fetch(
           `/api/operations/trips?projectId=${encodeURIComponent(projectId)}`,
         );
         const isJson =
-          res.headers
+          response.headers
             .get('content-type')
             ?.toLowerCase()
             .includes('application/json') ?? false;
-        const body = isJson ? await res.json() : await res.text();
+        const body = isJson ? await response.json() : await response.text();
 
-        if (!res.ok) {
+        if (!response.ok) {
           const message =
             typeof body === 'string'
               ? body
@@ -163,15 +190,15 @@ export default function AdminProjectDetail() {
     const loadTechnicians = async () => {
       try {
         setTechniciansLoading(true);
-        const res = await fetch('/api/operations/technicians');
+        const response = await fetch('/api/operations/technicians');
         const isJson =
-          res.headers
+          response.headers
             .get('content-type')
             ?.toLowerCase()
             .includes('application/json') ?? false;
-        const body = isJson ? await res.json() : await res.text();
+        const body = isJson ? await response.json() : await response.text();
 
-        if (!res.ok) {
+        if (!response.ok) {
           const message =
             typeof body === 'string'
               ? body
@@ -180,11 +207,9 @@ export default function AdminProjectDetail() {
           return;
         }
 
-        const items = (body?.items ?? []) as {
-          id: string;
-          name: string | null;
-          email: string;
-        }[];
+        const items =
+          ((body as any)?.items ??
+            []) as { id: string; name: string | null; email: string }[];
         setTechnicians(items);
       } catch (error) {
         const message =
@@ -205,37 +230,105 @@ export default function AdminProjectDetail() {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Checking access…</p>
+        <p className="text-sm text-muted-foreground">Checking access...</p>
       </div>
     );
   }
 
-  if (loading || !project) {
+  if (!projectId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-sm text-muted-foreground">Loading project…</p>
+        <p className="text-sm text-muted-foreground">
+          No project ID provided.
+        </p>
       </div>
     );
   }
 
-  const createdDate = new Date(project.createdAt).toLocaleString();
-  const onboarding = project.onboarding ?? undefined;
-  const features =
-    (onboarding?.selectedFeatures as string[] | undefined) ?? undefined;
+  const handleCreateTrip = async () => {
+    if (!project) return;
+    if (!scheduledFor) {
+      toast.error('Please choose a visit date and time.');
+      return;
+    }
+
+    const date = new Date(scheduledFor);
+    if (Number.isNaN(date.getTime())) {
+      toast.error('Scheduled date is not valid.');
+      return;
+    }
+
+    try {
+      setCreatingTrip(true);
+      const payload: {
+        projectId: string;
+        scheduledFor: string;
+        notes?: string;
+        technicianId?: string;
+      } = {
+        projectId: project.id,
+        scheduledFor: date.toISOString(),
+      };
+      if (notes.trim()) payload.notes = notes.trim();
+      if (technicianId.trim()) payload.technicianId = technicianId.trim();
+
+      const response = await fetch('/api/operations/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const isJson =
+        response.headers
+          .get('content-type')
+          ?.toLowerCase()
+          .includes('application/json') ?? false;
+      const body = isJson ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ?? 'Unable to create trip.';
+        toast.error(message);
+        return;
+      }
+
+      toast.success('Trip scheduled for this project.');
+      setScheduledFor('');
+      setNotes('');
+
+      // Refresh trips
+      const tripsResponse = await fetch(
+        `/api/operations/trips?projectId=${encodeURIComponent(project.id)}`,
+      );
+      const tripsIsJson =
+        tripsResponse.headers
+          .get('content-type')
+          ?.toLowerCase()
+          .includes('application/json') ?? false;
+      const tripsBody = tripsIsJson
+        ? await tripsResponse.json()
+        : await tripsResponse.text();
+
+      if (tripsResponse.ok) {
+        setTrips(((tripsBody as any)?.items ?? []) as Trip[]);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to create trip. Please try again.';
+      toast.error(message);
+    } finally {
+      setCreatingTrip(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-white">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">
-              Admin · Project
-            </p>
-            <h1 className="text-xl font-semibold text-foreground">
-              {project.name}
-            </h1>
-          </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
@@ -243,269 +336,290 @@ export default function AdminProjectDetail() {
             >
               Back to admin
             </Button>
+            <div>
+              <p className="font-semibold text-foreground">
+                Admin – Project detail
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Manage operations and technician visits for this ORAN project.
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-        <Card className="p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase">
-                Project info
+        <section className="space-y-3">
+          <h1 className="text-xl font-semibold text-foreground">
+            {loadingProject || !project ? 'Loading project...' : project.name}
+          </h1>
+          {project && (
+            <Card className="p-4 text-xs space-y-2">
+              <p className="text-sm font-semibold text-foreground">
+                Project overview
               </p>
-              <p className="text-sm font-medium text-foreground">
-                {project.buildingType || 'Unknown type'} ·{' '}
-                {project.roomsCount ?? 0} rooms
+              <p className="text-muted-foreground">
+                Created:{' '}
+                {new Date(project.createdAt).toLocaleString(undefined, {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                })}
               </p>
-            </div>
-            <div className="text-right text-xs text-muted-foreground">
-              <p className="uppercase tracking-wide">
-                {project.status.toLowerCase().replace(/_/g, ' ')}
+              <p className="text-muted-foreground">
+                Status:{' '}
+                <span className="uppercase">
+                  {project.status.toLowerCase().replace(/_/g, ' ')}
+                </span>
               </p>
-              <p>Created {createdDate}</p>
-            </div>
-          </div>
-        </Card>
-
-        <section className="grid gap-4 md:grid-cols-2 items-start">
-          <Card className="p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Onboarding summary</h2>
-            {onboarding ? (
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <p>
-                  <span className="font-medium text-foreground">
-                    Project status:
-                  </span>{' '}
-                  {onboarding.projectStatus || 'Not set'}
-                </p>
-                <p>
-                  <span className="font-medium text-foreground">
-                    Construction stage:
-                  </span>{' '}
-                  {onboarding.constructionStage || 'Not set'}
-                </p>
-                <p>
-                  <span className="font-medium text-foreground">
-                    Needs inspection:
-                  </span>{' '}
-                  {onboarding.needsInspection ? 'Yes' : 'No'}
-                </p>
-                {typeof onboarding.stairSteps === 'number' && (
-                  <p>
-                    <span className="font-medium text-foreground">
-                      Stair steps:
-                    </span>{' '}
-                    {onboarding.stairSteps}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No onboarding data recorded yet.
-              </p>
-            )}
-          </Card>
-
-          <Card className="p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Selected features</h2>
-            {features && features.length > 0 ? (
-              <div className="flex flex-wrap gap-2 text-xs">
-                {features.map((feature) => (
-                  <span
-                    key={feature}
-                    className="rounded-full bg-muted px-2 py-1 text-foreground capitalize"
-                  >
-                    {feature}
+              <div className="flex flex-wrap gap-4 mt-2">
+                <span className="text-muted-foreground">
+                  Building type:{' '}
+                  <span className="text-foreground">
+                    {project.buildingType ?? 'Not set'}
                   </span>
-                ))}
+                </span>
+                <span className="text-muted-foreground">
+                  Rooms:{' '}
+                  <span className="text-foreground">
+                    {project.roomsCount ?? 'Not set'}
+                  </span>
+                </span>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No feature selections captured for this project yet.
-              </p>
-            )}
-          </Card>
+            </Card>
+          )}
         </section>
 
         <Separator />
 
-        <section className="grid gap-4 md:grid-cols-2 items-start">
+        <section className="grid gap-4 md:grid-cols-2">
           <Card className="p-4 space-y-3">
-            <h2 className="text-sm font-semibold">Schedule a site visit</h2>
+            <h2 className="text-sm font-semibold">Schedule technician visit</h2>
             <p className="text-xs text-muted-foreground">
-              Create a basic trip for this project and optionally assign a technician.
+              Create a new field visit for this project and assign a technician.
             </p>
-            <div className="space-y-3 text-xs">
-              <div className="space-y-1">
-                <label className="block text-muted-foreground" htmlFor="scheduledFor">
-                  Scheduled for (ISO or local date-time)
-                </label>
-                <input
-                  id="scheduledFor"
-                  type="datetime-local"
-                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
-                  value={scheduledFor}
-                  onChange={(e) => setScheduledFor(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-muted-foreground" htmlFor="technicianId">
-                  Assign technician (optional)
-                </label>
-                <select
-                  id="technicianId"
-                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
-                  value={technicianId}
-                  onChange={(e) => setTechnicianId(e.target.value)}
-                  disabled={techniciansLoading}
-                >
-                  <option value="">
-                    {techniciansLoading
-                      ? 'Loading technicians…'
-                      : 'Unassigned (choose later)'}
-                  </option>
-                  {technicians.map((tech) => (
-                    <option key={tech.id} value={tech.id}>
-                      {tech.name || tech.email} ({tech.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="block text-muted-foreground" htmlFor="notes">
-                  Notes
-                </label>
-                <textarea
-                  id="notes"
-                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs resize-none"
-                  rows={3}
-                  placeholder="Short description of the visit"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-              <Button
-                size="sm"
-                disabled={creatingTrip || !scheduledFor}
-                onClick={async () => {
-                  if (!scheduledFor) {
-                    toast.error('Please choose a date and time.');
-                    return;
-                  }
-                  try {
-                    setCreatingTrip(true);
-                    const payload: {
-                      projectId: string;
-                      scheduledFor: string;
-                      notes?: string;
-                      technicianId?: string;
-                    } = {
-                      projectId: project.id,
-                      scheduledFor: new Date(scheduledFor).toISOString(),
-                    };
-                    if (notes.trim()) payload.notes = notes.trim();
-                    if (technicianId.trim()) payload.technicianId = technicianId.trim();
 
-                    const res = await fetch('/api/operations/trips', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(payload),
-                    });
-                    const isJson =
-                      res.headers
-                        .get('content-type')
-                        ?.toLowerCase()
-                        .includes('application/json') ?? false;
-                    const body = isJson ? await res.json() : await res.text();
+            <div className="space-y-2 text-xs">
+              <label className="block text-muted-foreground">
+                Visit date &amp; time
+              </label>
+              <input
+                type="datetime-local"
+                className="w-full border rounded px-2 py-1"
+                value={scheduledFor}
+                onChange={(event) => setScheduledFor(event.target.value)}
+              />
 
-                    if (!res.ok) {
-                      const message =
-                        typeof body === 'string'
-                          ? body
-                          : body?.message ?? 'Unable to create trip.';
-                      toast.error(message);
-                      return;
-                    }
-
-                    toast.success('Trip scheduled for this project.');
-                    setScheduledFor('');
-                    setNotes('');
-                    await (async () => {
-                      try {
-                        setTripsLoading(true);
-                        const resTrips = await fetch(
-                          `/api/operations/trips?projectId=${encodeURIComponent(
-                            project.id,
-                          )}`,
-                        );
-                        const isJsonTrips =
-                          resTrips.headers
-                            .get('content-type')
-                            ?.toLowerCase()
-                            .includes('application/json') ?? false;
-                        const bodyTrips = isJsonTrips
-                          ? await resTrips.json()
-                          : await resTrips.text();
-
-                        if (resTrips.ok) {
-                          setTrips((bodyTrips?.items ?? []) as Trip[]);
-                        }
-                      } finally {
-                        setTripsLoading(false);
-                      }
-                    })();
-                  } catch (error) {
-                    const message =
-                      error instanceof Error
-                        ? error.message
-                        : 'Unable to create trip. Please try again.';
-                    toast.error(message);
-                  } finally {
-                    setCreatingTrip(false);
-                  }
-                }}
+              <label className="block text-muted-foreground mt-2">
+                Technician
+              </label>
+              <select
+                className="w-full border rounded px-2 py-1"
+                value={technicianId}
+                onChange={(event) => setTechnicianId(event.target.value)}
               >
-                {creatingTrip ? 'Scheduling…' : 'Schedule visit'}
-              </Button>
+                <option value="">
+                  {techniciansLoading ? 'Loading technicians...' : 'Unassigned'}
+                </option>
+                {technicians.map((tech) => (
+                  <option key={tech.id} value={tech.id}>
+                    {tech.name ?? tech.email}
+                  </option>
+                ))}
+              </select>
+
+              <label className="block text-muted-foreground mt-2">Notes</label>
+              <textarea
+                className="w-full border rounded px-2 py-1 min-h-[60px]"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
             </div>
+
+            <Button
+              size="sm"
+              className="mt-2"
+              disabled={creatingTrip || !project}
+              onClick={handleCreateTrip}
+            >
+              {creatingTrip ? 'Scheduling...' : 'Schedule visit'}
+            </Button>
           </Card>
 
           <Card className="p-4 space-y-3">
             <h2 className="text-sm font-semibold">Trips for this project</h2>
             {tripsLoading ? (
-              <p className="text-xs text-muted-foreground">Loading trips…</p>
+              <p className="text-xs text-muted-foreground">Loading trips...</p>
             ) : trips.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 No trips have been created for this project yet.
               </p>
             ) : (
               <div className="space-y-2 text-xs text-muted-foreground">
-                {trips.map((trip) => (
-                  <div
-                    key={trip.id}
-                    className="flex items-center justify-between border-b border-border/40 pb-2 last:border-b-0"
-                  >
-                    <div>
-                      <p className="font-medium text-foreground">
-                        {new Date(trip.scheduledFor).toLocaleString()}
-                      </p>
-                      {trip.notes && (
-                        <p className="text-[11px]">{trip.notes}</p>
+                {trips.map((trip) => {
+                  const tasks = Array.isArray(trip.tasks) ? trip.tasks : [];
+                  const totalTasks = tasks.length;
+                  const completedTasks = tasks.filter((t) => t.isDone).length;
+                  const photos = Array.isArray(trip.photos) ? trip.photos : [];
+
+                  return (
+                    <div
+                      key={trip.id}
+                      className="space-y-2 border-b border-border/40 pb-2 last:border-b-0"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-foreground">
+                            {new Date(trip.scheduledFor).toLocaleString()}
+                          </p>
+                          {trip.notes && (
+                            <p className="text-[11px]">{trip.notes}</p>
+                          )}
+                          {trip.technician?.name && (
+                            <p className="text-[10px]">
+                              Technician: {trip.technician.name} (
+                              {trip.technician.email})
+                            </p>
+                          )}
+                          {trip.reworkReason && (
+                            <p className="text-[10px] text-amber-700">
+                              Rework reason: {trip.reworkReason}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right space-y-1">
+                          <p className="text-[11px] uppercase tracking-wide">
+                            {trip.status.toLowerCase().replace(/_/g, ' ')}
+                          </p>
+                          {totalTasks > 0 && (
+                            <p className="text-[10px]">
+                              Tasks: {completedTasks}/{totalTasks} complete
+                            </p>
+                          )}
+                          {trip.checkInAt && (
+                            <p className="text-[10px]">
+                              In: {new Date(trip.checkInAt).toLocaleString()}
+                            </p>
+                          )}
+                          {trip.checkOutAt && (
+                            <p className="text-[10px]">
+                              Out: {new Date(trip.checkOutAt).toLocaleString()}
+                            </p>
+                          )}
+                          {trip.status === 'COMPLETED' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="mt-1"
+                          disabled={reopeningTripId === trip.id}
+                          onClick={async () => {
+                            const confirmReopen = window.confirm(
+                              'Reopen this trip for rework and reset all tasks to not done?',
+                            );
+                            if (!confirmReopen) return;
+
+                            const reason =
+                              window.prompt(
+                                'Why are you reopening this visit? (optional)',
+                              ) ?? undefined;
+
+                            try {
+                              setReopeningTripId(trip.id);
+                              const response = await fetch(
+                                `/api/operations/trips/${trip.id}/reopen`,
+                                    {
+                                      method: 'PATCH',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                      },
+                                      body: JSON.stringify({
+                                        resetTasks: true,
+                                        reason: reason && reason.trim()
+                                          ? reason.trim()
+                                          : undefined,
+                                      }),
+                                    },
+                                  );
+                                  const isJson =
+                                    response.headers
+                                      .get('content-type')
+                                      ?.toLowerCase()
+                                      .includes('application/json') ?? false;
+                                  const body = isJson
+                                    ? await response.json()
+                                    : await response.text();
+
+                                  if (!response.ok) {
+                                    const message =
+                                      typeof body === 'string'
+                                        ? body
+                                        : body?.message ??
+                                          'Unable to reopen trip.';
+                                    toast.error(message);
+                                    return;
+                                  }
+
+                                  toast.success(
+                                    'Trip reopened for additional work.',
+                                  );
+
+                                  const refresh = await fetch(
+                                    `/api/operations/trips?projectId=${encodeURIComponent(
+                                      projectId,
+                                    )}`,
+                                  );
+                                  const refreshIsJson =
+                                    refresh.headers
+                                      .get('content-type')
+                                      ?.toLowerCase()
+                                      .includes('application/json') ?? false;
+                                  const refreshBody = refreshIsJson
+                                    ? await refresh.json()
+                                    : await refresh.text();
+                                  if (refresh.ok) {
+                                    setTrips(
+                                      ((refreshBody as any).items ?? []) as Trip[],
+                                    );
+                                  }
+                                } catch (error) {
+                                  const message =
+                                    error instanceof Error
+                                      ? error.message
+                                      : 'Unable to reopen trip. Please try again.';
+                                  toast.error(message);
+                                } finally {
+                                  setReopeningTripId(null);
+                                }
+                              }}
+                            >
+                              {reopeningTripId === trip.id
+                                ? 'Reopening...'
+                                : 'Reopen for rework'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {photos.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {photos.slice(0, 6).map((photo) => (
+                            <a
+                              key={photo.id}
+                              href={photo.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="border rounded-md overflow-hidden w-16 h-14 bg-muted flex items-center justify-center"
+                            >
+                              <img
+                                src={photo.url}
+                                alt={photo.caption ?? 'Trip photo'}
+                                className="object-cover w-full h-full"
+                              />
+                            </a>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <div className="text-right">
-                      <p className="text-[11px] uppercase tracking-wide">
-                        {trip.status.toLowerCase().replace(/_/g, ' ')}
-                      </p>
-                      {trip.technicianId && (
-                        <p className="text-[10px]">
-                          Tech: {trip.technicianId.slice(0, 6)}…
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>

@@ -196,6 +196,62 @@ export class EmailService {
     });
   }
 
+  async sendReworkNotificationEmail(params: {
+    to: string;
+    name?: string | null;
+    projectName: string;
+    visitWhen: Date;
+    reason?: string | null;
+    operationsUrl: string;
+  }) {
+    const greetingName = params.name?.trim() || 'there';
+
+    const when = params.visitWhen.toLocaleString('en-NG', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const bodyLines: string[] = [
+      `Project: <strong>${params.projectName}</strong>`,
+      `Visit time: <strong>${when}</strong>`,
+    ];
+
+    if (params.reason && params.reason.trim()) {
+      bodyLines.push(`Why we are returning: ${params.reason.trim()}`);
+    } else {
+      bodyLines.push(
+        'We have reopened this visit to make sure everything on site meets ORAN\'s standards and your expectations.',
+      );
+    }
+
+    bodyLines.push(
+      'You can track this updated visit and see technician updates from your ORAN dashboard.',
+    );
+
+    const html = this.buildBaseTemplate({
+      title: 'We have reopened a visit for follow-up work',
+      intro: `Hi ${greetingName}, we have reopened one of your ORAN site visits for additional work.`,
+      bodyLines,
+      action: {
+        label: 'View project operations',
+        url: params.operationsUrl,
+      },
+      footer:
+        'If you have any questions about this rework, simply reply to this email or contact ORAN support.',
+    });
+
+    await this.sendEmail({
+      to: params.to,
+      subject: 'ORAN visit reopened for follow-up work',
+      html,
+    });
+  }
+
   private buildBaseTemplate(content: {
     title: string;
     intro: string;

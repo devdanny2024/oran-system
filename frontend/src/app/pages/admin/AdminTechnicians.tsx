@@ -18,7 +18,7 @@ type Technician = {
   resetPasswordExpires?: string | null;
 };
 
-const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN'];
+const ALLOWED_ROLES = ['ADMIN'];
 
 export default function AdminTechnicians() {
   const router = useRouter();
@@ -332,4 +332,3 @@ export default function AdminTechnicians() {
     </div>
   );
 }
-

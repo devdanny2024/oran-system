@@ -25,4 +25,9 @@ export class ProjectsController {
   delete(@Param('id') id: string) {
     return this.projectsService.delete(id);
   }
+
+  @Post(':id/request-inspection')
+  requestInspection(@Param('id') id: string) {
+    return this.projectsService.requestInspection(id);
+  }
 }

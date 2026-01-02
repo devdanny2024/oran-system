@@ -50,6 +50,56 @@ export class ProjectsService {
     return project;
   }
 
+  async requestInspection(id: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      include: { onboarding: true, user: true },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found.');
+    }
+
+    const address = project.onboarding?.siteAddress ?? '';
+    const lowered = address.toLowerCase();
+
+    const isLagos = lowered.includes('lagos');
+
+    const westernStates = [
+      'ogun',
+      'osun',
+      'oyo',
+      'ibadan',
+      'ondo',
+      'ekiti',
+      'kwara',
+    ];
+
+    const isWesternNonLagos =
+      !isLagos && westernStates.some((state) => lowered.includes(state));
+
+    const fee =
+      isLagos ? 20000 : isWesternNonLagos ? 40000 : 100000;
+
+    // Update project status so admin/ops can see this in their views.
+    await this.prisma.project.update({
+      where: { id },
+      data: { status: 'INSPECTION_REQUESTED' as any },
+    });
+
+    return {
+      projectId: id,
+      inspectionFee: fee,
+      currency: 'NGN',
+      inferredRegion: isLagos
+        ? 'LAGOS'
+        : isWesternNonLagos
+        ? 'WESTERN_STATE'
+        : 'OTHER',
+      siteAddress: address || null,
+    };
+  }
+
   async delete(id: string) {
     const project = await this.prisma.project.findUnique({
       where: { id },

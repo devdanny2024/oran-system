@@ -64,8 +64,10 @@ export default function LoginPage() {
 
     toast.success('Login successful!');
 
-    if (user.role === 'ADMIN' || user.role === 'TECHNICIAN') {
+    if (user.role === 'ADMIN') {
       router.push('/admin');
+    } else if (user.role === 'TECHNICIAN') {
+      router.push('/technician');
     } else {
       try {
         const res = await fetch('/api/projects');

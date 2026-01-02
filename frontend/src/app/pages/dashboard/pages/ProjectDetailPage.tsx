@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
@@ -96,6 +96,23 @@ export default function ProjectDetailPage() {
       checkInAt?: string | null;
       checkOutAt?: string | null;
       notes?: string | null;
+      reworkReason?: string | null;
+      technician?: {
+        id: string;
+        name: string | null;
+        email: string;
+      } | null;
+      tasks?: {
+        id: string;
+        label: string;
+        sequence: number;
+        isDone: boolean;
+      }[];
+      photos?: {
+        id: string;
+        url: string;
+        caption?: string | null;
+      }[];
     }[]
   >([]);
 
@@ -309,11 +326,288 @@ export default function ProjectDetailPage() {
     agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
   const nextPayableMilestone =
     milestones.find((m) => m.status === 'PENDING') ?? null;
-  const effectivePaymentPlanSelection =
-    (paymentPlanSelection || paymentPlan?.type || '') as
-      | 'MILESTONE_3'
-      | 'EIGHTY_TEN_TEN'
-      | '';
+const effectivePaymentPlanSelection =
+  (paymentPlanSelection || paymentPlan?.type || '') as
+    | 'MILESTONE_3'
+    | 'EIGHTY_TEN_TEN'
+    | '';
+
+  const nextStepForCard:
+    | {
+        label: string;
+        cta: string;
+        action: () => void;
+      }
+    | null = (() => {
+    let step: {
+      label: string;
+      cta: string;
+      action: () => void;
+    } | null = null;
+
+    const selectedQuote = quotes.find((q) => q.isSelected) ?? null;
+
+    if (!onboarding || project.status === 'ONBOARDING') {
+      step = {
+        label:
+          'Finish your onboarding so ORAN can generate tailored quotes for this project.',
+        cta: 'Continue onboarding',
+        action: () => {
+          router.push('/onboarding');
+        },
+      };
+    } else if (!selectedQuote) {
+      if (quotes.length > 0) {
+        step = {
+          label:
+            'Open a quote to review Economy, Standard or Luxury options and pick a starting point.',
+          cta: 'Review quote options',
+          action: () => {
+            router.push(`/dashboard/quotes/${quotes[0].id}`);
+          },
+        };
+      }
+    } else if (!allDocumentsAccepted) {
+      step = {
+        label:
+          'Review and accept your installation, scope of work and payment terms documents.',
+        cta: 'Review documents',
+        action: () => {
+          const el =
+            typeof document !== 'undefined'
+              ? document.getElementById('project-documents-section')
+              : null;
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        },
+      };
+    } else if (!effectivePaymentPlanSelection) {
+      step = {
+        label:
+          'Choose your payment style so ORAN knows how to structure milestones and invoices.',
+        cta: 'Choose payment plan',
+        action: () => {
+          const el =
+            typeof document !== 'undefined'
+              ? document.getElementById('payment-plan-section')
+              : null;
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        },
+      };
+    } else if (nextPayableMilestone) {
+      step = {
+        label: `Pay milestone ${nextPayableMilestone.index} to move this project into live operations.`,
+        cta: 'Pay next milestone',
+        action: async () => {
+          try {
+            const res = await fetch(
+              `/api/projects/${project.id}/milestones/${nextPayableMilestone.id}/paystack/initialize`,
+              { method: 'POST' },
+            );
+
+            const isJson =
+              res.headers
+                .get('content-type')
+                ?.toLowerCase()
+                .includes('application/json') ?? false;
+            const body = isJson ? await res.json() : await res.text();
+
+            if (!res.ok) {
+              const message =
+                typeof body === 'string'
+                  ? body
+                  : body?.message ??
+                    'Unable to start payment. Please try again.';
+              toast.error(message);
+              return;
+            }
+
+            const authorizationUrl = (body as any)
+              ?.authorizationUrl as string | undefined;
+            if (!authorizationUrl) {
+              toast.error(
+                'Payment initialised but no authorization URL was returned.',
+              );
+              return;
+            }
+
+            window.location.href = authorizationUrl;
+          } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Unable to start payment. Please try again.';
+            toast.error(message);
+          }
+        },
+      };
+    }
+
+    return step;
+  })();
+
+  const flowToastShownRef = useRef(false);
+
+  useEffect(() => {
+    if (!project || flowToastShownRef.current) return;
+
+    const selectedQuote = quotes.find((q) => q.isSelected) ?? null;
+
+    type NextStep = {
+      label: string;
+      cta: string;
+      action: () => void;
+    };
+
+    let step: NextStep | null = null;
+
+    if (!onboarding || project.status === 'ONBOARDING') {
+      step = {
+        label:
+          'Finish your onboarding so ORAN can generate tailored quotes for this project.',
+        cta: 'Continue onboarding',
+        action: () => {
+          router.push('/onboarding');
+        },
+      };
+    } else if (!selectedQuote) {
+      if (quotes.length > 0) {
+        step = {
+          label:
+            'Open a quote to review Economy, Standard or Luxury options and pick a starting point.',
+          cta: 'Review quote options',
+          action: () => {
+            router.push(`/dashboard/quotes/${quotes[0].id}`);
+          },
+        };
+      }
+    } else if (!allDocumentsAccepted) {
+      step = {
+        label:
+          'Review and accept your installation, scope of work and payment terms documents.',
+        cta: 'Review documents',
+        action: () => {
+          const el =
+            typeof document !== 'undefined'
+              ? document.getElementById('project-documents-section')
+              : null;
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        },
+      };
+    } else if (!effectivePaymentPlanSelection) {
+      step = {
+        label:
+          'Choose your payment style so ORAN knows how to structure milestones and invoices.',
+        cta: 'Choose payment plan',
+        action: () => {
+          const el =
+            typeof document !== 'undefined'
+              ? document.getElementById('payment-plan-section')
+              : null;
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        },
+      };
+    } else if (nextPayableMilestone) {
+      step = {
+        label: `Pay milestone ${nextPayableMilestone.index} to move this project into live operations.`,
+        cta: 'Pay next milestone',
+        action: async () => {
+          try {
+            const res = await fetch(
+              `/api/projects/${project.id}/milestones/${nextPayableMilestone.id}/paystack/initialize`,
+              { method: 'POST' },
+            );
+
+            const isJson =
+              res.headers
+                .get('content-type')
+                ?.toLowerCase()
+                .includes('application/json') ?? false;
+            const body = isJson ? await res.json() : await res.text();
+
+            if (!res.ok) {
+              const message =
+                typeof body === 'string'
+                  ? body
+                  : body?.message ??
+                    'Unable to start payment. Please try again.';
+              toast.error(message);
+              return;
+            }
+
+            const authorizationUrl = (body as any)
+              ?.authorizationUrl as string | undefined;
+            if (!authorizationUrl) {
+              toast.error(
+                'Payment initialised but no authorization URL was returned.',
+              );
+              return;
+            }
+
+            window.location.href = authorizationUrl;
+          } catch (error) {
+            const message =
+              error instanceof Error
+                ? error.message
+                : 'Unable to start payment. Please try again.';
+            toast.error(message);
+          }
+        },
+      };
+    }
+
+    if (!step) return;
+
+    flowToastShownRef.current = true;
+
+    toast.custom(
+      (id) => (
+        <div className="rounded-md border bg-background px-4 py-3 shadow-lg text-xs md:text-sm max-w-sm flex items-start gap-3">
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Next step</p>
+            <p className="text-muted-foreground mt-1">{step!.label}</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Button
+              size="xs"
+              className="whitespace-nowrap"
+              onClick={() => {
+                toast.dismiss(id);
+                step!.action();
+              }}
+            >
+              {step!.cta}
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 text-muted-foreground"
+              onClick={() => toast.dismiss(id)}
+            >
+              ×
+            </Button>
+          </div>
+        </div>
+      ),
+      { duration: 12000 },
+    );
+  }, [
+    project,
+    onboarding,
+    quotes,
+    agreements,
+    allDocumentsAccepted,
+    effectivePaymentPlanSelection,
+    nextPayableMilestone,
+    router,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -340,7 +634,31 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <Card className="p-4 space-y-3">
+      {nextStepForCard && (
+        <Card className="border-primary bg-primary/5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Next step
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {nextStepForCard.label}
+              </p>
+            </div>
+            <Button
+              onClick={nextStepForCard.action}
+              className="self-start md:self-auto"
+            >
+              {nextStepForCard.cta}
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <Card
+        id="payment-plan-section"
+        className="p-4 space-y-3"
+      >
         <h2 className="text-sm font-semibold">Project details</h2>
         <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
           <div>
@@ -503,43 +821,98 @@ export default function ProjectDetailPage() {
             future these will be linked directly to milestones.
           </p>
           <div className="space-y-2 text-xs">
-            {trips.map((trip) => (
-              <div
-                key={trip.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 border rounded-md px-3 py-2"
-              >
-                <div className="space-y-1">
-                  <p className="font-medium text-foreground">
-                    Visit on{' '}
-                    {new Date(trip.scheduledFor).toLocaleString()}
-                  </p>
-                  {trip.notes && (
-                    <p className="text-[11px] text-muted-foreground">
-                      {trip.notes}
-                    </p>
+            {trips.map((trip) => {
+              const tasks = Array.isArray(trip.tasks) ? trip.tasks : [];
+              const totalTasks = tasks.length;
+              const completedTasks = tasks.filter((t) => t.isDone).length;
+              const photos = Array.isArray(trip.photos) ? trip.photos : [];
+
+              return (
+                <div
+                  key={trip.id}
+                  className="flex flex-col gap-2 border rounded-md px-3 py-2"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground">
+                        Visit on{' '}
+                        {new Date(trip.scheduledFor).toLocaleString()}
+                      </p>
+                      {trip.notes && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {trip.notes}
+                        </p>
+                      )}
+                      {trip.technician?.name && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Technician: {trip.technician.name}
+                        </p>
+                      )}
+                      {trip.checkOutAt && trip.status !== 'COMPLETED' && (
+                        <p className="text-[11px] text-amber-700">
+                          This visit has been reopened for follow-up work.
+                        </p>
+                      )}
+                      {trip.reworkReason && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Reason: {trip.reworkReason}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground md:text-right space-y-1">
+                      <p>
+                        Status:{' '}
+                        {trip.status.toLowerCase().replace(/_/g, ' ')}
+                      </p>
+                      {totalTasks > 0 && (
+                        <p>
+                          Tasks: {completedTasks}/{totalTasks} complete
+                        </p>
+                      )}
+                      {trip.checkInAt && (
+                        <p>
+                          Checked in:{' '}
+                          {new Date(trip.checkInAt).toLocaleString()}
+                        </p>
+                      )}
+                      {trip.checkOutAt && (
+                        <p>
+                          Checked out:{' '}
+                          {new Date(trip.checkOutAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {photos.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {photos.slice(0, 4).map((photo) => (
+                        <a
+                          key={photo.id}
+                          href={photo.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="border rounded-md overflow-hidden w-16 h-14 bg-muted flex items-center justify-center"
+                        >
+                          <img
+                            src={photo.url}
+                            alt={photo.caption ?? 'Trip photo'}
+                            className="object-cover w-full h-full"
+                          />
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <div className="text-[11px] text-muted-foreground md:text-right">
-                  <p>
-                    Status:{' '}
-                    {trip.status.toLowerCase().replace(/_/g, ' ')}
-                  </p>
-                  {trip.checkInAt && (
-                    <p>Checked in: {new Date(trip.checkInAt).toLocaleString()}</p>
-                  )}
-                  {trip.checkOutAt && (
-                    <p>
-                      Checked out: {new Date(trip.checkOutAt).toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}
 
-      <Card className="p-4 space-y-3">
+      <Card
+        id="project-documents-section"
+        className="p-4 space-y-3"
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Project documents</h2>
           <span className="text-xs text-muted-foreground">

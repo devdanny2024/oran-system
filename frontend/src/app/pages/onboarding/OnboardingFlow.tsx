@@ -144,7 +144,11 @@ export default function OnboardingFlow() {
         toast.success('Your project has been captured and quotes generated.');
       }
 
-      router.push('/dashboard');
+      if (currentProjectId) {
+        router.push(`/dashboard/projects/${currentProjectId}`);
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error) {
       const message =
         error instanceof Error
