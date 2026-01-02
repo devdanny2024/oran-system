@@ -1,9 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Calendar } from "../../../src/app/components/ui/calendar";
 import { Card } from "../../../src/app/components/ui/card";
 import { Badge } from "../../../src/app/components/ui/badge";
@@ -47,9 +44,7 @@ type Trip = {
 };
 
 export default function Page() {
-  const searchParams = useSearchParams();
-  const projectId = searchParams?.get("projectId") ?? null;
-
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState("morning");
@@ -57,6 +52,13 @@ export default function Page() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [tripsError, setTripsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("projectId");
+    setProjectId(id);
+  }, []);
 
   useEffect(() => {
     if (!projectId) {
