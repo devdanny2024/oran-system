@@ -149,14 +149,14 @@ This document tracks what has been implemented so far across backend, frontend, 
   - `/admin/projects/[id]` – Admin project detail:
     - Shows project and onboarding details.
     - Integrates with operations API:
-      - Loads trips via `/api/operations/trips?projectId=...`.
+      - Loads trips via `/api/operations/trips?projectId=give ...`.
       - Allows admin to schedule a site visit (trip) with `datetime-local` selector, technician assignment, and notes.
       - Shows trips list with status and basic technician info.
   - `/admin/technicians` – Technicians management:
     - Access-gated to `ADMIN` and `TECHNICIAN` roles.
     - Lists current technicians via `/api/operations/technicians`.
     - “Invite a technician” form:
-      - Name (optional), email (required).
+      - Name (optional), email (required).Exact
       - Calls `/api/operations/technicians/invite` and refreshes list.
     - **Revoke invite (new)**
       - Table includes an **Invite** column.

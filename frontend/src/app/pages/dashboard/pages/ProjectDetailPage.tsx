@@ -576,7 +576,7 @@ const effectivePaymentPlanSelection =
           </div>
           <div className="flex flex-col gap-1">
             <Button
-              size="xs"
+              size="sm"
               className="whitespace-nowrap"
               onClick={() => {
                 toast.dismiss(id);
