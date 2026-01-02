@@ -310,10 +310,10 @@ export default function ProjectDetailPage() {
     void load();
   }, [projectId, router]);
 
-  const flowToastShownRef = useRef(false);
+  const onboardingFlowToastShownRef = useRef(false);
 
   useEffect(() => {
-    if (!project || flowToastShownRef.current) return;
+    if (!project || onboardingFlowToastShownRef.current) return;
 
     const selectedQuote = quotes.find((q) => q.isSelected) ?? null;
 
@@ -438,7 +438,7 @@ export default function ProjectDetailPage() {
 
     if (!step) return;
 
-    flowToastShownRef.current = true;
+    onboardingFlowToastShownRef.current = true;
 
     toast.custom(
       (id) => (
