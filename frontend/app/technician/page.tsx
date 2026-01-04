@@ -1,6 +1,5 @@
-import TechnicianWorkspace from '../../src/app/pages/technician/TechnicianWorkspace';
+import TechnicianWorkspaceShell from '../../src/app/pages/technician/TechnicianWorkspaceShell';
 
 export default function Page() {
-  return <TechnicianWorkspace />;
+  return <TechnicianWorkspaceShell />;
 }
-
