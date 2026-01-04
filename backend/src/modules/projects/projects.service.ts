@@ -238,9 +238,24 @@ export class ProjectsService {
         where: { projectId: id },
       });
 
-      await tx.trip.deleteMany({
+      // Delete trip tasks and photos before trips to satisfy FK constraints.
+      const trips = await tx.trip.findMany({
         where: { projectId: id },
+        select: { id: true },
       });
+      const tripIds = trips.map((t) => t.id);
+
+      if (tripIds.length > 0) {
+        await tx.tripTask.deleteMany({
+          where: { tripId: { in: tripIds } },
+        });
+        await tx.tripPhoto.deleteMany({
+          where: { tripId: { in: tripIds } },
+        });
+        await tx.trip.deleteMany({
+          where: { id: { in: tripIds } },
+        });
+      }
 
       await tx.onboardingSession.deleteMany({
         where: { projectId: id },
@@ -255,6 +270,10 @@ export class ProjectsService {
       });
 
       await tx.paymentPlan.deleteMany({
+        where: { projectId: id },
+      });
+
+      await (tx as any).projectDeviceShipment.deleteMany({
         where: { projectId: id },
       });
 
