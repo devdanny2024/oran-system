@@ -252,10 +252,9 @@ export default function FinancePage() {
       !newBeneficiary.name ||
       !newBeneficiary.bankName ||
       !newBeneficiary.bankCode ||
-      !newBeneficiary.accountNumber ||
-      !newBeneficiary.accountName
+      !newBeneficiary.accountNumber
     ) {
-      toast.error('Please fill in all beneficiary fields.');
+      toast.error('Please fill in name, bank and account number.');
       return;
     }
 
@@ -716,4 +715,3 @@ export default function FinancePage() {
     </div>
   );
 }
-

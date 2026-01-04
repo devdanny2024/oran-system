@@ -51,9 +51,19 @@ export class FinanceService {
     bankName: string;
     bankCode: string;
     accountNumber: string;
-    accountName: string;
+    accountName?: string;
   }) {
     await this.assertFinanceAccess(params.userId);
+
+    // Resolve account name via Paystack if not provided explicitly.
+    let accountName = params.accountName?.trim();
+    if (!accountName) {
+      const resolved = await this.paystack.resolveAccount({
+        accountNumber: params.accountNumber,
+        bankCode: params.bankCode,
+      });
+      accountName = resolved.account_name;
+    }
 
     const beneficiary = await this.prisma.financeBeneficiary.create({
       data: {
@@ -61,7 +71,7 @@ export class FinanceService {
         bankName: params.bankName,
         bankCode: params.bankCode,
         accountNumber: params.accountNumber,
-        accountName: params.accountName,
+        accountName,
       },
     });
 
@@ -123,9 +133,58 @@ export class FinanceService {
       return base;
     }
 
-    // For now, rely on manual Paystack dashboard transfers.
-    // This placeholder can be extended later to call Paystack transfers.
-    return base;
+    // Ensure we have a Paystack transfer recipient code.
+    let recipientCode = beneficiary.paystackRecipientCode ?? null;
+
+    if (!recipientCode) {
+      const recipient = await this.paystack.createTransferRecipient({
+        name: beneficiary.name,
+        accountNumber: beneficiary.accountNumber,
+        bankCode: beneficiary.bankCode,
+        bankName: beneficiary.bankName,
+      });
+
+      recipientCode = recipient.recipient_code;
+
+      await this.prisma.financeBeneficiary.update({
+        where: { id: beneficiary.id },
+        data: { paystackRecipientCode: recipientCode },
+      });
+    }
+
+    const reference = `FIN-${base.id}`;
+
+    try {
+      const transfer = await this.paystack.initiateTransfer({
+        amountNaira: params.amountNaira,
+        recipient: recipientCode,
+        reason:
+          params.description ?? `Disbursement for ${beneficiary.name}`,
+        reference,
+      });
+
+      const updated = await this.prisma.financeDisbursement.update({
+        where: { id: base.id },
+        data: {
+          status: FinanceDisbursementStatus.SUCCESS,
+          paystackTransferCode: transfer.transfer_code,
+          paystackReference: transfer.reference,
+        },
+        include: {
+          beneficiary: true,
+        },
+      });
+
+      return updated;
+    } catch (error) {
+      await this.prisma.financeDisbursement.update({
+        where: { id: base.id },
+        data: {
+          status: FinanceDisbursementStatus.FAILED,
+        },
+      });
+
+      throw error;
+    }
   }
 }
-

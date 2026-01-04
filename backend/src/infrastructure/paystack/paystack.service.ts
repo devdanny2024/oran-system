@@ -9,6 +9,25 @@ interface InitializeParams {
   metadata?: Record<string, any>;
 }
 
+interface ResolveAccountParams {
+  accountNumber: string;
+  bankCode: string;
+}
+
+interface CreateTransferRecipientParams {
+  name: string;
+  accountNumber: string;
+  bankCode: string;
+  bankName?: string;
+}
+
+interface InitiateTransferParams {
+  amountNaira: number;
+  recipient: string;
+  reason?: string;
+  reference: string;
+}
+
 @Injectable()
 export class PaystackService {
   private readonly secretKey: string | undefined;
@@ -60,6 +79,95 @@ export class PaystackService {
     };
   }
 
+  async resolveAccount(params: ResolveAccountParams) {
+    const url =
+      'https://api.paystack.co/bank/resolve' +
+      `?account_number=${encodeURIComponent(params.accountNumber)}` +
+      `&bank_code=${encodeURIComponent(params.bankCode)}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: this.headers,
+    });
+
+    const body = await res.json();
+    if (!res.ok || body.status !== true) {
+      // eslint-disable-next-line no-console
+      console.error('[Paystack] resolve account failed', res.status, body);
+      throw new Error(
+        body?.message ??
+          'Unable to resolve bank account. Please check the details and try again.',
+      );
+    }
+
+    return body.data as {
+      account_name: string;
+      account_number: string;
+      bank_id: number;
+    };
+  }
+
+  async createTransferRecipient(params: CreateTransferRecipientParams) {
+    const res = await fetch('https://api.paystack.co/transferrecipient', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({
+        type: 'nuban',
+        name: params.name,
+        account_number: params.accountNumber,
+        bank_code: params.bankCode,
+        currency: 'NGN',
+        bank_name: params.bankName,
+      }),
+    });
+
+    const body = await res.json();
+    if (!res.ok || body.status !== true) {
+      // eslint-disable-next-line no-console
+      console.error('[Paystack] create transfer recipient failed', res.status, body);
+      throw new Error(
+        body?.message ??
+          'Unable to register transfer recipient with Paystack. Please try again.',
+      );
+    }
+
+    return body.data as {
+      recipient_code: string;
+    };
+  }
+
+  async initiateTransfer(params: InitiateTransferParams) {
+    const amountKobo = Math.round(params.amountNaira * 100);
+
+    const res = await fetch('https://api.paystack.co/transfer', {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({
+        source: 'balance',
+        amount: amountKobo,
+        recipient: params.recipient,
+        reason: params.reason ?? 'ORAN project disbursement',
+        reference: params.reference,
+      }),
+    });
+
+    const body = await res.json();
+    if (!res.ok || body.status !== true) {
+      // eslint-disable-next-line no-console
+      console.error('[Paystack] initiate transfer failed', res.status, body);
+      throw new Error(
+        body?.message ??
+          'Unable to initiate transfer via Paystack. Please try again.',
+      );
+    }
+
+    return body.data as {
+      transfer_code: string;
+      reference: string;
+      status: string;
+    };
+  }
+
   async verifyTransaction(reference: string) {
     const res = await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(
@@ -90,4 +198,3 @@ export class PaystackService {
     };
   }
 }
-
