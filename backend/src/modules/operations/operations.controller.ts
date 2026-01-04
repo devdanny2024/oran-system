@@ -99,4 +99,23 @@ export class OperationsController {
   ) {
     return this.operationsService.updateWorkProgress(projectId, body);
   }
+
+  @Get('customers/search')
+  searchCustomers(@Query('q') query: string) {
+    return this.operationsService.searchCustomers(query ?? '');
+  }
+
+  @Post('inspection-quotes')
+  createInspectionQuote(
+    @Body()
+    body: {
+      email: string;
+      items: { productId: string; quantity: number }[];
+      projectName?: string;
+      buildingType?: string | null;
+      roomsCount?: number | null;
+    },
+  ) {
+    return this.operationsService.createInspectionQuote(body);
+  }
 }

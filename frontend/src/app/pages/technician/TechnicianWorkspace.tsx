@@ -70,6 +70,21 @@ export default function TechnicianWorkspace() {
     null,
   );
 
+  const [products, setProducts] = useState<
+    { id: string; name: string; category: string }[]
+  >([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [inspectionItems, setInspectionItems] = useState<
+    { productId: string; quantity: number }[]
+  >([]);
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerOptions, setCustomerOptions] = useState<
+    { id: string; name: string | null; email: string }[]
+  >([]);
+  const [selectedCustomerEmail, setSelectedCustomerEmail] = useState('');
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [creatingInspectionQuote, setCreatingInspectionQuote] = useState(false);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -141,6 +156,39 @@ export default function TechnicianWorkspace() {
     if (!user) return;
     void loadTrips(user.id);
   }, [user]);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        const response = await fetch('/api/products');
+        const isJson =
+          response.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await response.json() : await response.text();
+
+        if (!response.ok) {
+          return;
+        }
+
+        const items = (body?.items ?? []) as {
+          id: string;
+          name: string;
+          category: string;
+        }[];
+
+        setProducts(items);
+      } catch {
+        // best-effort; ignore
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    void loadProducts();
+  }, []);
 
   const today = new Date();
   const isSameDay = (iso?: string | null) => {
@@ -786,6 +834,268 @@ export default function TechnicianWorkspace() {
                     </div>
                   );
                 })()}
+              </div>
+            </Card>
+          </section>
+
+          <section className="space-y-4">
+            <Card className="p-4 space-y-3">
+              <h2 className="text-sm font-semibold">
+                Site inspection &mdash; build quote
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Choose products and quantities required for this inspection,
+                pick the customer by email and ORAN will create a new project
+                and quote in their account.
+              </p>
+
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-medium text-foreground">
+                    Customer email
+                  </span>
+                  <input
+                    type="email"
+                    className="border rounded px-2 py-1 text-xs"
+                    placeholder="Start typing customer email..."
+                    value={customerQuery}
+                    onChange={async (event) => {
+                      const value = event.target.value;
+                      setCustomerQuery(value);
+                      setSelectedCustomerEmail(value);
+
+                      if (!value || value.length < 2) {
+                        setCustomerOptions([]);
+                        return;
+                      }
+
+                      try {
+                        setLoadingCustomers(true);
+                        const response = await fetch(
+                          `/api/operations/customers/search?q=${encodeURIComponent(
+                            value,
+                          )}`,
+                        );
+                        const isJson =
+                          response.headers
+                            .get('content-type')
+                            ?.toLowerCase()
+                            .includes('application/json') ?? false;
+                        const body = isJson
+                          ? await response.json()
+                          : await response.text();
+
+                        if (!response.ok) {
+                          setCustomerOptions([]);
+                          return;
+                        }
+
+                        const items = (body?.items ?? []) as {
+                          id: string;
+                          name: string | null;
+                          email: string;
+                        }[];
+                        setCustomerOptions(items);
+                      } catch {
+                        setCustomerOptions([]);
+                      } finally {
+                        setLoadingCustomers(false);
+                      }
+                    }}
+                  />
+                  {loadingCustomers && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Searching customers...
+                    </p>
+                  )}
+                  {customerOptions.length > 0 && (
+                    <div className="border rounded px-2 py-1 bg-background max-h-32 overflow-y-auto text-xs">
+                      {customerOptions.map((customer) => (
+                        <button
+                          key={customer.id}
+                          type="button"
+                          className="w-full text-left py-1 hover:bg-muted rounded"
+                          onClick={() => {
+                            setSelectedCustomerEmail(customer.email);
+                            setCustomerQuery(customer.email);
+                          }}
+                        >
+                          {customer.email}
+                          {customer.name
+                            ? ` \u00b7 ${customer.name}`
+                            : ''}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">
+                      Products for this inspection
+                    </span>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      disabled={loadingProducts}
+                      onClick={() => {
+                        setInspectionItems((previous) => [
+                          ...previous,
+                          { productId: '', quantity: 1 },
+                        ]);
+                      }}
+                    >
+                      Add product
+                    </Button>
+                  </div>
+
+                  {inspectionItems.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Add one or more products from the catalog to include them
+                      in the inspection quote.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {inspectionItems.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex flex-wrap items-center gap-2"
+                        >
+                          <select
+                            className="min-w-[180px] border rounded px-2 py-1 text-xs"
+                            value={item.productId}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setInspectionItems((previous) => {
+                                const copy = [...previous];
+                                copy[index] = {
+                                  ...copy[index],
+                                  productId: value,
+                                };
+                                return copy;
+                              });
+                            }}
+                          >
+                            <option value="">
+                              {loadingProducts
+                                ? 'Loading products...'
+                                : 'Select product'}
+                            </option>
+                            {products.map((product) => (
+                              <option key={product.id} value={product.id}>
+                                {product.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            className="w-20 border rounded px-2 py-1 text-xs"
+                            value={item.quantity}
+                            onChange={(event) => {
+                              const value = Number(event.target.value) || 1;
+                              setInspectionItems((previous) => {
+                                const copy = [...previous];
+                                copy[index] = {
+                                  ...copy[index],
+                                  quantity: value,
+                                };
+                                return copy;
+                              });
+                            }}
+                          />
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => {
+                              setInspectionItems((previous) =>
+                                previous.filter((_, i) => i !== index),
+                              );
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    size="sm"
+                    disabled={
+                      creatingInspectionQuote ||
+                      !selectedCustomerEmail ||
+                      inspectionItems.length === 0 ||
+                      inspectionItems.some(
+                        (i) => !i.productId || i.quantity <= 0,
+                      )
+                    }
+                    onClick={async () => {
+                      if (
+                        !selectedCustomerEmail ||
+                        inspectionItems.length === 0
+                      ) {
+                        toast.error(
+                          'Please select a customer email and at least one product.',
+                        );
+                        return;
+                      }
+
+                      try {
+                        setCreatingInspectionQuote(true);
+                        const response = await fetch(
+                          '/api/operations/inspection-quotes',
+                          {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              email: selectedCustomerEmail,
+                              items: inspectionItems,
+                            }),
+                          },
+                        );
+                        const isJson =
+                          response.headers
+                            .get('content-type')
+                            ?.toLowerCase()
+                            .includes('application/json') ?? false;
+                        const body = isJson
+                          ? await response.json()
+                          : await response.text();
+
+                        if (!response.ok) {
+                          const message =
+                            typeof body === 'string'
+                              ? body
+                              : body?.message ??
+                                'Unable to create inspection quote.';
+                          toast.error(message);
+                          return;
+                        }
+
+                        toast.success(
+                          'Inspection quote created and emailed to the customer.',
+                        );
+                        setInspectionItems([]);
+                      } catch (error) {
+                        const message =
+                          error instanceof Error
+                            ? error.message
+                            : 'Unable to create inspection quote. Please try again.';
+                        toast.error(message);
+                      } finally {
+                        setCreatingInspectionQuote(false);
+                      }
+                    }}
+                  >
+                    {creatingInspectionQuote
+                      ? 'Creating quote...'
+                      : 'Create inspection quote'}
+                  </Button>
+                </div>
               </div>
             </Card>
           </section>

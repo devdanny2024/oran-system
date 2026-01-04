@@ -3,11 +3,12 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { InviteTechnicianDto } from './dto/invite-technician.dto';
 import { RevokeTechnicianDto } from './dto/revoke-technician.dto';
-import { TripStatus, UserRole, MilestoneStatus } from '@prisma/client';
+import { TripStatus, UserRole, MilestoneStatus, PriceTier } from '@prisma/client';
 import { EmailService } from '../../infrastructure/email/email.service';
 import * as bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { MilestonesService } from '../milestones/milestones.service';
+import { computeQuoteFees } from '../../domain/pricing/quote-fees';
 
 @Injectable()
 export class OperationsService {
@@ -550,5 +551,203 @@ export class OperationsService {
     });
 
     return this.getWorkProgress(projectId);
+  }
+
+  async searchCustomers(query: string) {
+    const q = query?.trim();
+    if (!q) {
+      return { items: [] };
+    }
+
+    const lowered = q.toLowerCase();
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        role: UserRole.CUSTOMER,
+        email: {
+          contains: lowered,
+          mode: 'insensitive',
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+      take: 10,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return { items: users };
+  }
+
+  async createInspectionQuote(payload: {
+    email: string;
+    items: { productId: string; quantity: number }[];
+    projectName?: string;
+    buildingType?: string | null;
+    roomsCount?: number | null;
+  }) {
+    const email = payload.email?.trim().toLowerCase();
+    if (!email) {
+      throw new BadRequestException('Customer email is required.');
+    }
+
+    if (!Array.isArray(payload.items) || payload.items.length === 0) {
+      throw new BadRequestException(
+        'Please select at least one product for the inspection quote.',
+      );
+    }
+
+    const baseItems = payload.items
+      .map((item) => ({
+        productId: item.productId,
+        quantity:
+          typeof item.quantity === 'number' && item.quantity > 0
+            ? Math.floor(item.quantity)
+            : 0,
+      }))
+      .filter((item) => item.productId && item.quantity > 0);
+
+    if (!baseItems.length) {
+      throw new BadRequestException(
+        'All selected products have invalid quantities.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user || user.role !== UserRole.CUSTOMER) {
+      throw new BadRequestException(
+        'No customer account found for this email. Please register the customer first.',
+      );
+    }
+
+    const productIds = baseItems.map((i) => i.productId);
+
+    const result = await this.prisma.$transaction(async (tx: any) => {
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds } },
+      });
+
+      if (!products.length) {
+        throw new BadRequestException('No valid products found for quote.');
+      }
+
+      const byId = new Map<string, any>(
+        products.map((p: any) => [p.id as string, p]),
+      );
+
+      const filteredItems = baseItems.filter((i) => byId.has(i.productId));
+      if (!filteredItems.length) {
+        throw new BadRequestException('No valid products found for quote.');
+      }
+
+      const now = new Date();
+      const defaultProjectName = `Site inspection - ${now.toLocaleDateString(
+        'en-NG',
+      )}`;
+      const name =
+        payload.projectName?.trim().length ?? 0
+          ? payload.projectName!.trim()
+          : defaultProjectName;
+
+      const project = await tx.project.create({
+        data: {
+          name,
+          userId: user.id,
+          status: 'QUOTES_GENERATED' as any,
+          buildingType: payload.buildingType ?? null,
+          roomsCount:
+            typeof payload.roomsCount === 'number'
+              ? payload.roomsCount
+              : null,
+        },
+      });
+
+      const quote = await tx.quote.create({
+        data: {
+          projectId: project.id,
+          tier: PriceTier.STANDARD,
+          status: 'GENERATED',
+          currency: 'NGN',
+          subtotal: 0,
+          installationFee: 0,
+          integrationFee: 0,
+          logisticsCost: 0,
+          miscellaneousFee: 0,
+          taxAmount: 0,
+          total: 0,
+          isSelected: false,
+          title: 'Inspection quote',
+        },
+      });
+
+      let subtotal = 0;
+      let totalDevices = 0;
+
+      for (const item of filteredItems) {
+        const product = byId.get(item.productId);
+        const unitPrice = Number(product.unitPrice);
+        const lineTotal = unitPrice * item.quantity;
+
+        subtotal += lineTotal;
+        totalDevices += item.quantity;
+
+        await tx.quoteItem.create({
+          data: {
+            quoteId: quote.id,
+            productId: product.id,
+            name: product.name,
+            category: product.category,
+            quantity: item.quantity,
+            unitPrice: product.unitPrice,
+            totalPrice: lineTotal,
+          },
+        });
+      }
+
+      const fees = computeQuoteFees(
+        subtotal,
+        totalDevices,
+        null,
+        payload.roomsCount ?? null,
+      );
+
+      const updatedQuote = await tx.quote.update({
+        where: { id: quote.id },
+        data: {
+          subtotal,
+          installationFee: fees.installationFee,
+          integrationFee: fees.integrationFee,
+          logisticsCost: fees.logisticsCost,
+          miscellaneousFee: fees.miscellaneousFee,
+          taxAmount: fees.taxAmount,
+          total: fees.total,
+        },
+        include: { items: true },
+      });
+
+      return { project, quote: updatedQuote };
+    });
+
+    const frontendBase = this.emailService.getFrontendBaseUrl();
+    const quoteUrl = `${frontendBase}/dashboard/quotes/${encodeURIComponent(
+      result.quote.id,
+    )}`;
+
+    await this.emailService.sendQuoteCreatedEmail({
+      to: user.email,
+      name: user.name,
+      projectName: result.project.name,
+      quoteUrl,
+    });
+
+    return {
+      projectId: result.project.id,
+      quoteId: result.quote.id,
+    };
   }
 }

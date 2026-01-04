@@ -252,6 +252,36 @@ export class EmailService {
     });
   }
 
+  async sendQuoteCreatedEmail(params: {
+    to: string;
+    name?: string | null;
+    projectName: string;
+    quoteUrl: string;
+  }) {
+    const greetingName = params.name?.trim() || 'there';
+
+    const html = this.buildBaseTemplate({
+      title: 'Your ORAN inspection quote is ready',
+      intro: `Hi ${greetingName}, your ORAN technician has prepared a quote based on the recent site inspection.`,
+      bodyLines: [
+        `Project: <strong>${params.projectName}</strong>`,
+        'This quote reflects the devices and work discussed on site. You can review all items, adjust quantities if needed and then move forward to documents and payment.',
+      ],
+      action: {
+        label: 'Review your inspection quote',
+        url: params.quoteUrl,
+      },
+      footer:
+        'If anything in the quote does not match what you discussed with the technician, simply reply to this email or contact ORAN support and we will help you adjust it.',
+    });
+
+    await this.sendEmail({
+      to: params.to,
+      subject: 'Your ORAN inspection quote is ready',
+      html,
+    });
+  }
+
   private buildBaseTemplate(content: {
     title: string;
     intro: string;
