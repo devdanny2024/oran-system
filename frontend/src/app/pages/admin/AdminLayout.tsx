@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, Wrench } from 'lucide-react';
+import { LayoutDashboard, Users, Wrench, Wallet } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
@@ -14,7 +14,7 @@ type OranUser = {
   role?: string;
 };
 
-const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN'];
+const ALLOWED_ROLES = ['ADMIN', 'TECHNICIAN', 'CFO'];
 
 export default function AdminLayout({
   children,
@@ -66,6 +66,7 @@ export default function AdminLayout({
 
   const navItems = [
     { name: 'Overview', href: '/admin', icon: LayoutDashboard },
+    { name: 'Finance', href: '/admin/finance', icon: Wallet },
     { name: 'Technicians', href: '/admin/technicians', icon: Users },
     { name: 'Technician workspace', href: '/technician', icon: Wrench },
   ];

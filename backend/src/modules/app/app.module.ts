@@ -19,6 +19,7 @@ import { AiModule } from '../../infrastructure/ai/ai.module';
 import { PaystackModule } from '../../infrastructure/paystack/paystack.module';
 import { RevenueModule } from '../revenue/revenue.module';
 import { ServiceFeesModule } from '../service-fees/service-fees.module';
+import { FinanceModule } from '../finance/finance.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ServiceFeesModule } from '../service-fees/service-fees.module';
     AiModule,
     PaystackModule,
     RevenueModule,
+    FinanceModule,
     AuthModule,
     ProjectsModule,
     OnboardingModule,

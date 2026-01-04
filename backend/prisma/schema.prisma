@@ -226,6 +226,42 @@ enum UserRole {
   CUSTOMER
   TECHNICIAN
   ADMIN
+  CFO
+}
+
+model FinanceBeneficiary {
+  id              String   @id @default(cuid())
+  name            String
+  bankName        String
+  bankCode        String
+  accountNumber   String
+  accountName     String
+  paystackRecipientCode String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  disbursements   FinanceDisbursement[]
+}
+
+model FinanceDisbursement {
+  id              String                     @id @default(cuid())
+  beneficiary     FinanceBeneficiary         @relation(fields: [beneficiaryId], references: [id])
+  beneficiaryId   String
+  amount          Decimal
+  currency        String                     @default("NGN")
+  description     String?
+  status          FinanceDisbursementStatus  @default(PENDING)
+  paystackTransferCode String?
+  paystackReference    String?
+  createdByUserId String?
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
+}
+
+enum FinanceDisbursementStatus {
+  PENDING
+  PENDING_ADMIN_APPROVAL
+  SUCCESS
+  FAILED
 }
 
 enum ProjectStatus {
