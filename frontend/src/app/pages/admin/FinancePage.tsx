@@ -296,7 +296,6 @@ export default function FinancePage() {
 
     void loadOverview();
     void loadBeneficiaries();
-    void loadBanks();
     void loadDisbursements();
   }, [user]);
 
