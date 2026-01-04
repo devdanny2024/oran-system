@@ -410,4 +410,145 @@ export class OperationsService {
       },
     });
   }
+
+  async getWorkProgress(projectId: string) {
+    const shipment = await (this.prisma as any).projectDeviceShipment.findUnique(
+      { where: { projectId } },
+    );
+
+    if (!shipment) {
+      return {
+        totalExpected: 0,
+        totalInstalled: 0,
+        categories: [] as Array<{
+          key: string;
+          label: string;
+          expected: number;
+          installed: number;
+        }>,
+      };
+    }
+
+    const items = Array.isArray(shipment.itemsJson)
+      ? (shipment.itemsJson as any[])
+      : [];
+
+    const categoryLabels: Record<string, string> = {
+      LIGHTING: 'Lighting Automation',
+      CLIMATE: 'Climate Control',
+      ACCESS: 'Access Control',
+      SURVEILLANCE: 'Surveillance System',
+      GATE: 'Gate Automation',
+      STAIRCASE: 'Staircase & accent lighting',
+    };
+
+    const byCategory = new Map<
+      string,
+      { expected: number; installed: number }
+    >();
+
+    let totalExpected = 0;
+    let totalInstalled = 0;
+
+    for (const raw of items) {
+      const category = (raw?.category as string | undefined) ?? 'UNKNOWN';
+      const expected =
+        typeof raw?.quantity === 'number' && raw.quantity > 0
+          ? raw.quantity
+          : 0;
+      const installed =
+        typeof raw?.installedQuantity === 'number' && raw.installedQuantity > 0
+          ? Math.min(raw.installedQuantity, expected)
+          : 0;
+
+      if (expected <= 0) continue;
+
+      const current = byCategory.get(category) ?? { expected: 0, installed: 0 };
+      current.expected += expected;
+      current.installed += installed;
+      byCategory.set(category, current);
+
+      totalExpected += expected;
+      totalInstalled += installed;
+    }
+
+    const categories = Array.from(byCategory.entries()).map(
+      ([key, value]) => ({
+        key,
+        label: categoryLabels[key] ?? key,
+        expected: value.expected,
+        installed: value.installed,
+      }),
+    );
+
+    return {
+      totalExpected,
+      totalInstalled,
+      categories,
+    };
+  }
+
+  async updateWorkProgress(
+    projectId: string,
+    payload: { items: { quoteItemId: string; installed: number }[] },
+  ) {
+    if (!payload || !Array.isArray(payload.items) || !payload.items.length) {
+      return this.getWorkProgress(projectId);
+    }
+
+    const shipment = await (this.prisma as any).projectDeviceShipment.findUnique(
+      { where: { projectId } },
+    );
+
+    if (!shipment) {
+      throw new NotFoundException(
+        'Device shipment not found for this project.',
+      );
+    }
+
+    const items = Array.isArray(shipment.itemsJson)
+      ? (shipment.itemsJson as any[])
+      : [];
+
+    const updates = new Map<string, number>();
+
+    for (const entry of payload.items) {
+      if (!entry || typeof entry.quoteItemId !== 'string') continue;
+      const target =
+        typeof entry.installed === 'number' && entry.installed > 0
+          ? entry.installed
+          : 0;
+      updates.set(entry.quoteItemId, target);
+    }
+
+    if (!updates.size) {
+      return this.getWorkProgress(projectId);
+    }
+
+    const nextItems = items.map((raw: any) => {
+      const quoteItemId = raw?.quoteItemId as string | undefined;
+      if (!quoteItemId || !updates.has(quoteItemId)) {
+        return raw;
+      }
+
+      const expected =
+        typeof raw?.quantity === 'number' && raw.quantity > 0
+          ? raw.quantity
+          : 0;
+      const requested = updates.get(quoteItemId) ?? 0;
+
+      return {
+        ...raw,
+        installedQuantity:
+          expected > 0 ? Math.max(0, Math.min(requested, expected)) : 0,
+      };
+    });
+
+    await (this.prisma as any).projectDeviceShipment.update({
+      where: { projectId },
+      data: { itemsJson: nextItems },
+    });
+
+    return this.getWorkProgress(projectId);
+  }
 }

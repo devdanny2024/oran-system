@@ -86,4 +86,17 @@ export class OperationsController {
   ) {
     return this.operationsService.addPhoto(id, body.url, body.caption);
   }
+
+  @Get('projects/:projectId/work-progress')
+  getWorkProgress(@Param('projectId') projectId: string) {
+    return this.operationsService.getWorkProgress(projectId);
+  }
+
+  @Patch('projects/:projectId/work-progress')
+  updateWorkProgress(
+    @Param('projectId') projectId: string,
+    @Body() body: { items: { quoteItemId: string; installed: number }[] },
+  ) {
+    return this.operationsService.updateWorkProgress(projectId, body);
+  }
 }

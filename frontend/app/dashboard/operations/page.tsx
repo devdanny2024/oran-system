@@ -43,6 +43,19 @@ type Trip = {
   notes?: string | null;
 };
 
+type WorkProgressCategory = {
+  key: string;
+  label: string;
+  expected: number;
+  installed: number;
+};
+
+type WorkProgress = {
+  totalExpected: number;
+  totalInstalled: number;
+  categories: WorkProgressCategory[];
+};
+
 export default function Page() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [requestDialogOpen, setRequestDialogOpen] = useState(false);
@@ -52,6 +65,11 @@ export default function Page() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [tripsError, setTripsError] = useState<string | null>(null);
+  const [workProgress, setWorkProgress] = useState<WorkProgress | null>(null);
+  const [loadingWorkProgress, setLoadingWorkProgress] = useState(false);
+  const [workProgressError, setWorkProgressError] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -127,45 +145,59 @@ export default function Page() {
       };
     }, [trips]);
 
-  const workProgress = useMemo(() => {
-    if (trips.length === 0) {
-      return {
-        completedPercent: 0,
-        inProgressPercent: 0,
-        scheduledPercent: 0,
-        completedCount: 0,
-        inProgressCount: 0,
-        scheduledCount: 0,
-        total: 0,
-      };
+  useEffect(() => {
+    if (!projectId) {
+      setWorkProgress(null);
+      setWorkProgressError(null);
+      return;
     }
 
-    const total = trips.length;
-    const completedCount = trips.filter((t) => t.status === "COMPLETED").length;
-    const inProgressCount = trips.filter(
-      (t) => t.status === "IN_PROGRESS",
-    ).length;
-    const scheduledCount = trips.filter(
-      (t) => t.status === "SCHEDULED",
-    ).length;
+    const controller = new AbortController();
 
-    const completedPercent =
-      total > 0 ? Math.round((completedCount / total) * 100) : 0;
-    const inProgressPercent =
-      total > 0 ? Math.round((inProgressCount / total) * 100) : 0;
-    const scheduledPercent =
-      total > 0 ? Math.round((scheduledCount / total) * 100) : 0;
+    const load = async () => {
+      try {
+        setLoadingWorkProgress(true);
+        setWorkProgressError(null);
 
-    return {
-      completedPercent,
-      inProgressPercent,
-      scheduledPercent,
-      completedCount,
-      inProgressCount,
-      scheduledCount,
-      total,
+        const res = await fetch(
+          `/api/operations/work-progress?projectId=${encodeURIComponent(
+            projectId,
+          )}`,
+          { signal: controller.signal },
+        );
+
+        const contentType = res.headers.get("content-type")?.toLowerCase();
+        const isJson = contentType?.includes("application/json");
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === "string"
+              ? body
+              : body?.message ?? "Unable to load work progress.";
+          setWorkProgressError(message);
+          setWorkProgress(null);
+          return;
+        }
+
+        setWorkProgress(body as WorkProgress);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to reach ORAN operations service for work progress.";
+        setWorkProgressError(message);
+        setWorkProgress(null);
+      } finally {
+        setLoadingWorkProgress(false);
+      }
     };
-  }, [trips]);
+
+    void load();
+
+    return () => controller.abort();
+  }, [projectId]);
 
   const upcomingTrip = useMemo(() => {
     const candidates = trips.filter((t) =>
@@ -459,46 +491,44 @@ export default function Page() {
       {/* Section 3: Work Progress Tracker */}
       <Card className="p-6 space-y-4">
         <h2 className="text-lg font-semibold">Work Progress</h2>
-        <div className="space-y-4 text-sm">
-          <ProgressRow
-            label="Visits completed"
-            status={
-              workProgress.total === 0
-                ? "not-started"
-                : workProgress.completedPercent === 100
-                ? "complete"
-                : workProgress.completedPercent > 0
-                ? "in-progress"
-                : "not-started"
-            }
-            percent={workProgress.completedPercent}
-            detail={`${workProgress.completedCount} of ${workProgress.total} visits`}
-          />
-          <ProgressRow
-            label="Visits in progress"
-            status={
-              workProgress.inProgressCount > 0
-                ? "in-progress"
-                : "not-started"
-            }
-            percent={workProgress.inProgressPercent}
-            detail={`${workProgress.inProgressCount} active visit${
-              workProgress.inProgressCount === 1 ? "" : "s"
-            }`}
-          />
-          <ProgressRow
-            label="Visits scheduled"
-            status={
-              workProgress.scheduledCount > 0
-                ? "in-progress"
-                : "not-started"
-            }
-            percent={workProgress.scheduledPercent}
-            detail={`${workProgress.scheduledCount} upcoming visit${
-              workProgress.scheduledCount === 1 ? "" : "s"
-            }`}
-          />
-        </div>
+        {loadingWorkProgress ? (
+          <p className="text-sm text-muted-foreground">
+            Calculating device installation progress...
+          </p>
+        ) : workProgressError ? (
+          <p className="text-sm text-red-600">{workProgressError}</p>
+        ) : !workProgress || workProgress.totalExpected === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No devices have been linked to operations for this project yet.
+          </p>
+        ) : (
+          <div className="space-y-4 text-sm">
+            {workProgress.categories.map((category) => {
+              const percent =
+                category.expected > 0
+                  ? Math.round((category.installed / category.expected) * 100)
+                  : 0;
+              const status =
+                category.expected === 0 && category.installed === 0
+                  ? "not-started"
+                  : category.installed >= category.expected
+                  ? "complete"
+                  : category.installed > 0
+                  ? "in-progress"
+                  : "not-started";
+
+              return (
+                <ProgressRow
+                  key={category.key}
+                  label={category.label}
+                  status={status}
+                  percent={percent}
+                  detail={`${category.installed} of ${category.expected} devices installed`}
+                />
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Section 4: Action Footer */}
