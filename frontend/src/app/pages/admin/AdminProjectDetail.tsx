@@ -104,6 +104,11 @@ export default function AdminProjectDetail() {
     useState<ProjectDeviceShipment | null>(null);
   const [deviceShipmentLoading, setDeviceShipmentLoading] = useState(false);
   const [updatingShipment, setUpdatingShipment] = useState(false);
+  const [shipmentStatus, setShipmentStatus] =
+    useState<DeviceShipmentStatus>('NOT_PREPARED');
+  const [shipmentFrom, setShipmentFrom] = useState('');
+  const [shipmentTo, setShipmentTo] = useState('');
+  const [shipmentNote, setShipmentNote] = useState('');
 
   const [technicians, setTechnicians] = useState<
     { id: string; name: string | null; email: string }[]
@@ -288,6 +293,78 @@ export default function AdminProjectDetail() {
     void loadTechnicians();
     void loadDeviceShipment();
   }, [projectId]);
+
+  useEffect(() => {
+    if (!deviceShipment) return;
+    setShipmentStatus(deviceShipment.status);
+    setShipmentFrom(
+      deviceShipment.estimatedFrom
+        ? new Date(deviceShipment.estimatedFrom).toISOString().slice(0, 10)
+        : '',
+    );
+    setShipmentTo(
+      deviceShipment.estimatedTo
+        ? new Date(deviceShipment.estimatedTo).toISOString().slice(0, 10)
+        : '',
+    );
+    setShipmentNote(deviceShipment.locationNote ?? '');
+  }, [deviceShipment]);
+
+  const handleSaveShipment = async () => {
+    if (!projectId) return;
+    if (!deviceShipment) return;
+
+    try {
+      setUpdatingShipment(true);
+      const payload: {
+        status: DeviceShipmentStatus;
+        locationNote: string | null;
+        estimatedFrom: string | null;
+        estimatedTo: string | null;
+      } = {
+        status: shipmentStatus,
+        locationNote: shipmentNote.trim() ? shipmentNote.trim() : null,
+        estimatedFrom: shipmentFrom || null,
+        estimatedTo: shipmentTo || null,
+      };
+
+      const res = await fetch(
+        `/api/projects/${projectId}/device-shipment`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const isJson =
+        res.headers
+          .get('content-type')
+          ?.toLowerCase()
+          .includes('application/json') ?? false;
+      const body = isJson ? await res.json() : await res.text();
+
+      if (!res.ok) {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ?? 'Unable to update device shipment.';
+        toast.error(message);
+        return;
+      }
+
+      setDeviceShipment(body as ProjectDeviceShipment);
+      toast.success('Device shipment updated.');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to update device shipment. Please try again.';
+      toast.error(message);
+    } finally {
+      setUpdatingShipment(false);
+    }
+  };
 
   if (checking) {
     return (
@@ -708,52 +785,13 @@ export default function AdminProjectDetail() {
                     <span className="text-muted-foreground">Status</span>
                     <select
                       className="border rounded px-2 py-1 text-xs"
-                      value={deviceShipment.status}
+                      value={shipmentStatus}
                       disabled={updatingShipment}
-                      onChange={async (event) => {
-                        const status = event.target
-                          .value as DeviceShipmentStatus;
-                        try {
-                          setUpdatingShipment(true);
-                          const res = await fetch(
-                            `/api/projects/${projectId}/device-shipment`,
-                            {
-                              method: 'PATCH',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ status }),
-                            },
-                          );
-                          const isJson =
-                            res.headers
-                              .get('content-type')
-                              ?.toLowerCase()
-                              .includes('application/json') ?? false;
-                          const body = isJson
-                            ? await res.json()
-                            : await res.text();
-
-                          if (!res.ok) {
-                            const message =
-                              typeof body === 'string'
-                                ? body
-                                : body?.message ??
-                                  'Unable to update device shipment.';
-                            toast.error(message);
-                            return;
-                          }
-
-                          setDeviceShipment(body as ProjectDeviceShipment);
-                          toast.success('Device shipment updated.');
-                        } catch (error) {
-                          const message =
-                            error instanceof Error
-                              ? error.message
-                              : 'Unable to update device shipment. Please try again.';
-                          toast.error(message);
-                        } finally {
-                          setUpdatingShipment(false);
-                        }
-                      }}
+                      onChange={(event) =>
+                        setShipmentStatus(
+                          event.target.value as DeviceShipmentStatus,
+                        )
+                      }
                     >
                       <option value="NOT_PREPARED">Not prepared</option>
                       <option value="WRAPPING">Wrapping</option>
@@ -761,6 +799,47 @@ export default function AdminProjectDetail() {
                       <option value="NIGERIA_STORE">Nigeria store</option>
                       <option value="DELIVERED">Delivered</option>
                     </select>
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">ETA from</span>
+                      <input
+                        type="date"
+                        className="border rounded px-2 py-1 text-xs"
+                        value={shipmentFrom}
+                        onChange={(event) => setShipmentFrom(event.target.value)}
+                        disabled={updatingShipment}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">ETA to</span>
+                      <input
+                        type="date"
+                        className="border rounded px-2 py-1 text-xs"
+                        value={shipmentTo}
+                        onChange={(event) => setShipmentTo(event.target.value)}
+                        disabled={updatingShipment}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Location note</span>
+                    <textarea
+                      className="border rounded px-2 py-1 text-xs min-h-[60px]"
+                      value={shipmentNote}
+                      onChange={(event) => setShipmentNote(event.target.value)}
+                      disabled={updatingShipment}
+                    />
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      size="sm"
+                      className="text-xs"
+                      disabled={updatingShipment}
+                      onClick={handleSaveShipment}
+                    >
+                      {updatingShipment ? 'Saving...' : 'Save logistics details'}
+                    </Button>
                   </div>
                   {deviceShipment.itemsJson.length > 0 && (
                     <div className="space-y-1">

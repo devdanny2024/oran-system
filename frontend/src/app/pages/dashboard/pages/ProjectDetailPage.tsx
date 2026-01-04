@@ -733,10 +733,7 @@ export default function ProjectDetailPage() {
         </Card>
       )}
 
-      <Card
-        id="payment-plan-section"
-        className="p-4 space-y-3"
-      >
+      <Card id="project-quotes-section" className="p-4 space-y-3">
         <h2 className="text-sm font-semibold">Project details</h2>
         <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
           <div>
@@ -1020,6 +1017,27 @@ export default function ProjectDetailPage() {
                   </li>
                 ))}
               </ul>
+              {(deviceShipment.estimatedFrom || deviceShipment.estimatedTo) && (
+                <p className="text-[11px] text-muted-foreground">
+                  Estimated delivery:{' '}
+                  {deviceShipment.estimatedFrom
+                    ? new Date(
+                        deviceShipment.estimatedFrom,
+                      ).toLocaleDateString()
+                    : 'TBD'}{' '}
+                  -{' '}
+                  {deviceShipment.estimatedTo
+                    ? new Date(
+                        deviceShipment.estimatedTo,
+                      ).toLocaleDateString()
+                    : 'TBD'}
+                </p>
+              )}
+              {deviceShipment.locationNote && (
+                <p className="text-[11px] text-muted-foreground">
+                  Location: {deviceShipment.locationNote}
+                </p>
+              )}
               <p className="text-[11px] text-muted-foreground">
                 Typical device delivery window is 1–3 weeks from your first
                 milestone payment. ORAN will update this status as your devices
@@ -1180,7 +1198,7 @@ export default function ProjectDetailPage() {
       </Card>
 
       <Card
-        id="project-quotes-section"
+        id="payment-plan-section"
         className="p-4 space-y-3"
       >
         <div className="flex items-center justify-between">
@@ -1368,7 +1386,7 @@ export default function ProjectDetailPage() {
         )}
       </Card>
 
-      <Card className="p-4 space-y-3">
+      <Card id="project-quotes-section" className="p-4 space-y-3">
         <h2 className="text-sm font-semibold">Onboarding summary</h2>
         {onboarding ? (
           <div className="space-y-2 text-xs text-muted-foreground">
@@ -1426,7 +1444,7 @@ export default function ProjectDetailPage() {
         )}
       </Card>
 
-      <Card className="p-4 space-y-3">
+      <Card id="project-quotes-section" className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Quotes for this project</h2>
           <span className="text-xs text-muted-foreground">
