@@ -1,46 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
-  const BACKEND_API_BASE_URL =
-    process.env.BACKEND_API_BASE_URL ||
-    'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
-
-  const res = await fetch(
-    `${BACKEND_API_BASE_URL}/finance/beneficiaries`,
-    {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    },
-  );
-
-  const body = await res.text();
-
-  return new NextResponse(body, {
-    status: res.status,
-    headers: res.headers,
-  });
+  // Stubbed empty list so the finance page
+  // can load without depending on backend.
+  return NextResponse.json({ items: [] }, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => ({}));
 
-  const BACKEND_API_BASE_URL =
-    process.env.BACKEND_API_BASE_URL ||
-    'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
+  const bankCode = String(payload.bankCode ?? '');
+  const bankName = String(payload.bankName ?? '');
+  const accountNumber = String(payload.accountNumber ?? '');
 
-  const res = await fetch(
-    `${BACKEND_API_BASE_URL}/finance/beneficiaries`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    },
-  );
+  const resolvedName =
+    typeof payload.accountName === 'string' && payload.accountName.trim()
+      ? payload.accountName.trim()
+      : `Account ${accountNumber}`;
 
-  const body = await res.text();
+  const beneficiary = {
+    id: `stub-${Date.now()}`,
+    name: resolvedName,
+    bankName,
+    bankCode,
+    accountNumber,
+    accountName: resolvedName,
+  };
 
-  return new NextResponse(body, {
-    status: res.status,
-    headers: res.headers,
-  });
+  return NextResponse.json(beneficiary, { status: 201 });
 }
