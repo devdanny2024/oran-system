@@ -38,6 +38,7 @@ model Project {
   agreements  ProjectAgreement[] @relation("ProjectAgreements")
   paymentPlan PaymentPlan?       @relation("ProjectPaymentPlan")
   milestones  ProjectMilestone[] @relation("ProjectMilestones")
+  deviceShipment ProjectDeviceShipment?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
@@ -183,6 +184,7 @@ model ProjectMilestone {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   trips       Trip[]
+  deviceShipments ProjectDeviceShipment[]
 }
 
 model TripTask {
