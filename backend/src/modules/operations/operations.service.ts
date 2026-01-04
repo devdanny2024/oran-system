@@ -339,16 +339,17 @@ export class OperationsService {
 
     // Notify the project owner that this visit has been reopened for
     // follow-up work so they understand what is happening.
-    if (trip.project && trip.project.user) {
+    const tripWithProject = trip as any;
+    if (tripWithProject.project && tripWithProject.project.user) {
       const frontendBase = this.emailService.getFrontendBaseUrl();
       const operationsUrl = `${frontendBase}/dashboard/projects/${encodeURIComponent(
-        trip.project.id,
+        tripWithProject.project.id,
       )}`;
 
       await this.emailService.sendReworkNotificationEmail({
-        to: trip.project.user.email,
-        name: trip.project.user.name,
-        projectName: trip.project.name,
+        to: tripWithProject.project.user.email,
+        name: tripWithProject.project.user.name,
+        projectName: tripWithProject.project.name,
         visitWhen: updated.scheduledFor,
         reason: updated.reworkReason ?? reason ?? null,
         operationsUrl,

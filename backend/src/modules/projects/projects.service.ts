@@ -86,12 +86,12 @@ export class ProjectsService {
               where: { id: { in: quoteItemIds } },
             });
 
-            const byId = new Map(
+            const byId = new Map<string, any>(
               quoteItems.map((qi: any) => [qi.id as string, qi]),
             );
 
             items = rawItems.map((i: any) => {
-              const qi = byId.get(i.quoteItemId as string);
+              const qi = byId.get(i.quoteItemId as string) as any;
               return {
                 quoteItemId: i.quoteItemId,
                 quantity: i.quantity,
