@@ -1,13 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { ServiceFeeType } from '@prisma/client';
 
 @Injectable()
 export class ServiceFeesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list() {
-    const fees = await this.prisma.serviceFee.findMany({
+    const fees = await (this.prisma as any).serviceFee.findMany({
       orderBy: { name: 'asc' },
     });
 
@@ -16,7 +15,7 @@ export class ServiceFeesService {
 
   async create(payload: {
     name: string;
-    type: ServiceFeeType;
+    type: 'INSTALLATION' | 'INTEGRATION' | 'TRANSPORT' | 'OTHER';
     technicianAmount: number;
     clientAmount: number;
   }) {
@@ -32,7 +31,7 @@ export class ServiceFeesService {
       throw new BadRequestException('Amounts must be zero or positive.');
     }
 
-    const fee = await this.prisma.serviceFee.create({
+    const fee = await (this.prisma as any).serviceFee.create({
       data: {
         name,
         type: payload.type,
@@ -48,7 +47,7 @@ export class ServiceFeesService {
     id: string,
     payload: {
       name?: string;
-      type?: ServiceFeeType;
+      type?: 'INSTALLATION' | 'INTEGRATION' | 'TRANSPORT' | 'OTHER';
       technicianAmount?: number;
       clientAmount?: number;
       active?: boolean;
@@ -96,7 +95,7 @@ export class ServiceFeesService {
       data.active = Boolean(payload.active);
     }
 
-    const updated = await this.prisma.serviceFee.update({
+    const updated = await (this.prisma as any).serviceFee.update({
       where: { id },
       data,
     });
@@ -113,11 +112,10 @@ export class ServiceFeesService {
       throw new NotFoundException('Service fee not found.');
     }
 
-    await this.prisma.serviceFee.delete({
+    await (this.prisma as any).serviceFee.delete({
       where: { id },
     });
 
     return { success: true };
   }
 }
-

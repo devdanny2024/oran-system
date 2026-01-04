@@ -1,6 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ServiceFeesService } from './service-fees.service';
-import { ServiceFeeType } from '@prisma/client';
 
 @Controller('service-fees')
 export class ServiceFeesController {
@@ -16,7 +15,7 @@ export class ServiceFeesController {
     @Body()
     body: {
       name: string;
-      type: ServiceFeeType;
+      type: 'INSTALLATION' | 'INTEGRATION' | 'TRANSPORT' | 'OTHER';
       technicianAmount: number;
       clientAmount: number;
     },
@@ -30,7 +29,7 @@ export class ServiceFeesController {
     @Body()
     body: {
       name?: string;
-      type?: ServiceFeeType;
+      type?: 'INSTALLATION' | 'INTEGRATION' | 'TRANSPORT' | 'OTHER';
       technicianAmount?: number;
       clientAmount?: number;
       active?: boolean;
@@ -44,4 +43,3 @@ export class ServiceFeesController {
     return this.serviceFees.remove(id);
   }
 }
-
