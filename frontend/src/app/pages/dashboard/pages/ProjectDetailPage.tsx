@@ -325,6 +325,16 @@ export default function ProjectDetailPage() {
 
     let step: NextStep | null = null;
 
+    const scrollToQuotes = () => {
+      const el =
+        typeof document !== 'undefined'
+          ? document.getElementById('project-quotes-section')
+          : null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
     if (!project.onboarding || project.status === 'ONBOARDING') {
       step = {
         label:
@@ -334,15 +344,13 @@ export default function ProjectDetailPage() {
           router.push('/onboarding');
         },
       };
-    } else if (!selectedQuote) {
+    } else if (!selectedQuote && project.status === 'QUOTES_GENERATED') {
       if (quotes.length > 0) {
         step = {
           label:
             'Open a quote to review Economy, Standard or Luxury options and pick a starting point.',
           cta: 'Review quote options',
-          action: () => {
-            router.push(`/dashboard/quotes/${quotes[0].id}`);
-          },
+          action: scrollToQuotes,
         };
       }
     } else {
@@ -497,11 +505,11 @@ export default function ProjectDetailPage() {
     agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
   const nextPayableMilestone =
     milestones.find((m) => m.status === 'PENDING') ?? null;
-const effectivePaymentPlanSelection =
-  (paymentPlanSelection || paymentPlan?.type || '') as
-    | 'MILESTONE_3'
-    | 'EIGHTY_TEN_TEN'
-    | '';
+  const effectivePaymentPlanSelection =
+    (paymentPlanSelection || paymentPlan?.type || '') as
+      | 'MILESTONE_3'
+      | 'EIGHTY_TEN_TEN'
+      | '';
 
   const nextStepForCard:
     | {
@@ -518,6 +526,16 @@ const effectivePaymentPlanSelection =
 
     const selectedQuote = quotes.find((q) => q.isSelected) ?? null;
 
+    const scrollToQuotes = () => {
+      const el =
+        typeof document !== 'undefined'
+          ? document.getElementById('project-quotes-section')
+          : null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
     if (!onboarding || project.status === 'ONBOARDING') {
       step = {
         label:
@@ -527,15 +545,13 @@ const effectivePaymentPlanSelection =
           router.push('/onboarding');
         },
       };
-    } else if (!selectedQuote) {
+    } else if (!selectedQuote && project.status === 'QUOTES_GENERATED') {
       if (quotes.length > 0) {
         step = {
           label:
             'Open a quote to review Economy, Standard or Luxury options and pick a starting point.',
           cta: 'Review quote options',
-          action: () => {
-            router.push(`/dashboard/quotes/${quotes[0].id}`);
-          },
+          action: scrollToQuotes,
         };
       }
     } else if (!allDocumentsAccepted) {
@@ -1064,7 +1080,10 @@ const effectivePaymentPlanSelection =
         )}
       </Card>
 
-      <Card className="p-4 space-y-3">
+      <Card
+        id="project-quotes-section"
+        className="p-4 space-y-3"
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Payment plan</h2>
           <span className="text-xs text-muted-foreground">
