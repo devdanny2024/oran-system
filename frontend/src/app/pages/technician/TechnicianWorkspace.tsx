@@ -936,8 +936,8 @@ export default function TechnicianWorkspace() {
                     <span className="text-xs font-medium text-foreground">
                       Products for this inspection
                     </span>
-                    <Button
-                      size="xs"
+                      <Button
+                        size="sm"
                       variant="outline"
                       disabled={loadingProducts}
                       onClick={() => {
@@ -1007,7 +1007,7 @@ export default function TechnicianWorkspace() {
                             }}
                           />
                           <Button
-                            size="xs"
+                            size="sm"
                             variant="ghost"
                             onClick={() => {
                               setInspectionItems((previous) =>
