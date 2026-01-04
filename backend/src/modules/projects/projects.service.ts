@@ -50,6 +50,118 @@ export class ProjectsService {
     return project;
   }
 
+  async getDeviceShipment(projectId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found.');
+    }
+
+    let shipment = await (this.prisma as any).projectDeviceShipment.findUnique({
+      where: { projectId },
+    });
+
+    if (!shipment) {
+      // Best-effort: derive initial devices from the first milestone's items.
+      const firstMilestone = await (this.prisma as any).projectMilestone.findFirst(
+        {
+          where: { projectId },
+          orderBy: { index: 'asc' },
+        },
+      );
+
+      let items: any[] = [];
+
+      if (firstMilestone?.itemsJson) {
+        try {
+          const rawItems = firstMilestone.itemsJson as any[];
+          const quoteItemIds = rawItems
+            .map((i) => i.quoteItemId as string | undefined)
+            .filter(Boolean);
+
+          if (quoteItemIds.length > 0) {
+            const quoteItems = await (this.prisma as any).quoteItem.findMany({
+              where: { id: { in: quoteItemIds } },
+            });
+
+            const byId = new Map(
+              quoteItems.map((qi: any) => [qi.id as string, qi]),
+            );
+
+            items = rawItems.map((i: any) => {
+              const qi = byId.get(i.quoteItemId as string);
+              return {
+                quoteItemId: i.quoteItemId,
+                quantity: i.quantity,
+                name: qi?.name ?? null,
+                category: qi?.category ?? null,
+              };
+            });
+          }
+        } catch {
+          items = [];
+        }
+      }
+
+      shipment = await (this.prisma as any).projectDeviceShipment.create({
+        data: {
+          projectId,
+          milestoneId: firstMilestone?.id ?? null,
+          itemsJson: items,
+        },
+      });
+    }
+
+    return shipment;
+  }
+
+  async updateDeviceShipment(projectId: string, payload: {
+    status?: string;
+    locationNote?: string | null;
+    estimatedFrom?: string | null;
+    estimatedTo?: string | null;
+  }) {
+    const existing = await (this.prisma as any).projectDeviceShipment.findUnique({
+      where: { projectId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Device shipment not found for this project.');
+    }
+
+    const data: any = {};
+
+    if (typeof payload.status === 'string' && payload.status) {
+      data.status = payload.status as any;
+    }
+
+    if (payload.locationNote !== undefined) {
+      const note = payload.locationNote?.trim();
+      data.locationNote = note && note.length ? note : null;
+    }
+
+    if (payload.estimatedFrom !== undefined) {
+      data.estimatedFrom = payload.estimatedFrom
+        ? new Date(payload.estimatedFrom)
+        : null;
+    }
+
+    if (payload.estimatedTo !== undefined) {
+      data.estimatedTo = payload.estimatedTo
+        ? new Date(payload.estimatedTo)
+        : null;
+    }
+
+    const updated = await (this.prisma as any).projectDeviceShipment.update({
+      where: { projectId },
+      data,
+    });
+
+    return updated;
+  }
+
   async requestInspection(id: string) {
     const project = await this.prisma.project.findUnique({
       where: { id },

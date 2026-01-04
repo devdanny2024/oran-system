@@ -64,6 +64,29 @@ type Trip = {
   photos?: TripPhoto[];
 };
 
+type DeviceShipmentStatus =
+  | 'NOT_PREPARED'
+  | 'WRAPPING'
+  | 'IN_TRANSIT'
+  | 'NIGERIA_STORE'
+  | 'DELIVERED';
+
+type ProjectDeviceShipment = {
+  id: string;
+  projectId: string;
+  milestoneId?: string | null;
+  status: DeviceShipmentStatus;
+  itemsJson: {
+    quoteItemId?: string;
+    quantity?: number;
+    name?: string | null;
+    category?: string | null;
+  }[];
+  estimatedFrom?: string | null;
+  estimatedTo?: string | null;
+  locationNote?: string | null;
+};
+
 const ALLOWED_ROLES = ['ADMIN'];
 
 export default function AdminProjectDetail() {
@@ -77,6 +100,10 @@ export default function AdminProjectDetail() {
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripsLoading, setTripsLoading] = useState(false);
+  const [deviceShipment, setDeviceShipment] =
+    useState<ProjectDeviceShipment | null>(null);
+  const [deviceShipmentLoading, setDeviceShipmentLoading] = useState(false);
+  const [updatingShipment, setUpdatingShipment] = useState(false);
 
   const [technicians, setTechnicians] = useState<
     { id: string; name: string | null; email: string }[]
@@ -222,9 +249,44 @@ export default function AdminProjectDetail() {
       }
     };
 
+    const loadDeviceShipment = async () => {
+      try {
+        setDeviceShipmentLoading(true);
+        const response = await fetch(
+          `/api/projects/${projectId}/device-shipment`,
+        );
+        const isJson =
+          response.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await response.json() : await response.text();
+
+        if (!response.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load device shipment.';
+          toast.error(message);
+          return;
+        }
+
+        setDeviceShipment(body as ProjectDeviceShipment);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load device shipment. Please try again.';
+        toast.error(message);
+      } finally {
+        setDeviceShipmentLoading(false);
+      }
+    };
+
     void loadProject();
     void loadTrips();
     void loadTechnicians();
+    void loadDeviceShipment();
   }, [projectId]);
 
   if (checking) {
@@ -621,6 +683,110 @@ export default function AdminProjectDetail() {
                   );
                 })}
               </div>
+            )}
+          </Card>
+
+          <Card className="p-4 space-y-3">
+            <h2 className="text-sm font-semibold">Devices & logistics</h2>
+            {deviceShipmentLoading ? (
+              <p className="text-xs text-muted-foreground">
+                Loading device shipment...
+              </p>
+            ) : !deviceShipment ? (
+              <p className="text-xs text-muted-foreground">
+                No shipment record yet. This will be created automatically once
+                milestones are generated.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Devices associated with the first payment milestone and their
+                  logistics status.
+                </p>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Status</span>
+                    <select
+                      className="border rounded px-2 py-1 text-xs"
+                      value={deviceShipment.status}
+                      disabled={updatingShipment}
+                      onChange={async (event) => {
+                        const status = event.target
+                          .value as DeviceShipmentStatus;
+                        try {
+                          setUpdatingShipment(true);
+                          const res = await fetch(
+                            `/api/projects/${projectId}/device-shipment`,
+                            {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status }),
+                            },
+                          );
+                          const isJson =
+                            res.headers
+                              .get('content-type')
+                              ?.toLowerCase()
+                              .includes('application/json') ?? false;
+                          const body = isJson
+                            ? await res.json()
+                            : await res.text();
+
+                          if (!res.ok) {
+                            const message =
+                              typeof body === 'string'
+                                ? body
+                                : body?.message ??
+                                  'Unable to update device shipment.';
+                            toast.error(message);
+                            return;
+                          }
+
+                          setDeviceShipment(body as ProjectDeviceShipment);
+                          toast.success('Device shipment updated.');
+                        } catch (error) {
+                          const message =
+                            error instanceof Error
+                              ? error.message
+                              : 'Unable to update device shipment. Please try again.';
+                          toast.error(message);
+                        } finally {
+                          setUpdatingShipment(false);
+                        }
+                      }}
+                    >
+                      <option value="NOT_PREPARED">Not prepared</option>
+                      <option value="WRAPPING">Wrapping</option>
+                      <option value="IN_TRANSIT">In transit</option>
+                      <option value="NIGERIA_STORE">Nigeria store</option>
+                      <option value="DELIVERED">Delivered</option>
+                    </select>
+                  </div>
+                  {deviceShipment.itemsJson.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="font-medium text-foreground text-xs">
+                        Devices in this shipment
+                      </p>
+                      <ul className="list-disc list-inside text-[11px] text-muted-foreground">
+                        {deviceShipment.itemsJson.map((item, index) => (
+                          <li key={item.quoteItemId ?? index}>
+                            {item.name ?? 'Device'} &times;{' '}
+                            {item.quantity ?? 1}{' '}
+                            {item.category
+                              ? `(${item.category.toLowerCase()})`
+                              : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Typical device delivery window is 1–3 weeks from first
+                    milestone payment. Update status above as items move from
+                    wrapping to transit and into the Nigeria store.
+                  </p>
+                </div>
+              </>
             )}
           </Card>
         </section>

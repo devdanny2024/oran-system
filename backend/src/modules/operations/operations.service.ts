@@ -26,13 +26,69 @@ export class OperationsService {
       throw new BadRequestException('Project not found for trip.');
     }
 
-    if (payload.technicianId) {
+    let technicianId: string | undefined = payload.technicianId;
+
+    if (technicianId) {
       const technician = await this.prisma.user.findUnique({
-        where: { id: payload.technicianId },
+        where: { id: technicianId },
       });
 
-      if (!technician || technician.role !== 'TECHNICIAN') {
+      if (!technician || technician.role !== UserRole.TECHNICIAN) {
         throw new BadRequestException('Technician user not found.');
+      }
+    } else {
+      // Auto-assign a technician "on ground" with fewer than 5 active projects.
+      // If all technicians already have 5+ projects, we leave the trip
+      // unassigned so the existing client messaging still applies.
+      const technicians = await this.prisma.user.findMany({
+        where: { role: UserRole.TECHNICIAN },
+        select: { id: true },
+      });
+
+      if (technicians.length > 0) {
+        const trips = await this.prisma.trip.findMany({
+          where: {
+            technicianId: { in: technicians.map((t) => t.id) },
+          },
+          select: {
+            technicianId: true,
+            projectId: true,
+          },
+        });
+
+        const projectCounts = new Map<string, number>();
+        for (const t of trips) {
+          if (!t.technicianId) continue;
+          const key = `${t.technicianId}:${t.projectId}`;
+          // Count distinct projects per technician.
+          if (!projectCounts.has(key)) {
+            projectCounts.set(key, 1);
+          }
+        }
+
+        const loadByTechnician = new Map<string, number>();
+        for (const tech of technicians) {
+          loadByTechnician.set(tech.id, 0);
+        }
+        for (const key of projectCounts.keys()) {
+          const [techId] = key.split(':');
+          loadByTechnician.set(
+            techId,
+            (loadByTechnician.get(techId) ?? 0) + 1,
+          );
+        }
+
+        const candidates = technicians
+          .map((t) => ({
+            id: t.id,
+            projectsCount: loadByTechnician.get(t.id) ?? 0,
+          }))
+          .filter((t) => t.projectsCount < 5)
+          .sort((a, b) => a.projectsCount - b.projectsCount);
+
+        if (candidates.length > 0) {
+          technicianId = candidates[0].id;
+        }
       }
     }
 
@@ -44,7 +100,7 @@ export class OperationsService {
     const trip = await this.prisma.trip.create({
       data: {
         projectId: payload.projectId,
-        technicianId: payload.technicianId,
+        technicianId,
         scheduledFor,
         notes: payload.notes,
       },

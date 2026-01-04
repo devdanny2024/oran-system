@@ -95,6 +95,21 @@ model Trip {
   photos        TripPhoto[]
 }
 
+model ProjectDeviceShipment {
+  id           String               @id @default(cuid())
+  project      Project              @relation(fields: [projectId], references: [id])
+  projectId    String               @unique
+  milestone    ProjectMilestone?    @relation(fields: [milestoneId], references: [id])
+  milestoneId  String?
+  status       DeviceShipmentStatus @default(NOT_PREPARED)
+  itemsJson    Json
+  estimatedFrom DateTime?
+  estimatedTo   DateTime?
+  locationNote String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
 model Quote {
   id          String       @id @default(cuid())
   project     Project      @relation(fields: [projectId], references: [id])
@@ -254,4 +269,12 @@ enum MilestoneStatus {
   SCHEDULED
   IN_PROGRESS
   COMPLETED
+}
+
+enum DeviceShipmentStatus {
+  NOT_PREPARED
+  WRAPPING
+  IN_TRANSIT
+  NIGERIA_STORE
+  DELIVERED
 }
