@@ -1005,7 +1005,7 @@ export default function ProjectDetailPage() {
           {deviceShipment.itemsJson.length > 0 ? (
             <div className="space-y-2 text-xs">
               <p className="text-muted-foreground">
-                These are the core devices tied to your first payment milestone.
+                These are the core devices tied to your paid milestones for this project.
               </p>
               <ul className="list-disc list-inside text-[11px] text-muted-foreground">
                 {deviceShipment.itemsJson.map((item, index) => (

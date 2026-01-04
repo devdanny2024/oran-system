@@ -777,8 +777,8 @@ export default function AdminProjectDetail() {
             ) : (
               <>
                 <p className="text-xs text-muted-foreground">
-                  Devices associated with the first payment milestone and their
-                  logistics status.
+                  Devices associated with paid milestones for this project and
+                  their logistics status.
                 </p>
                 <div className="space-y-2 text-xs">
                   <div className="flex items-center justify-between gap-2">

@@ -170,14 +170,80 @@ export class MilestonesService {
       data: { status: MilestoneStatus.COMPLETED },
     });
 
-    // After a successful payment and milestone completion, create a
-    // tentative site visit in the operations schedule and notify the customer.
+    // After a successful payment and milestone completion, update the
+    // project's device shipment with any devices tied to this milestone,
+    // then create a tentative site visit in the operations schedule and
+    // notify the customer.
+    await this.addMilestoneDevicesToShipment(projectId, milestone);
     await this.createOperationsVisitAndNotify(projectId, milestoneId);
 
     return {
       milestoneId,
       status: updated.status,
     };
+  }
+
+  private async addMilestoneDevicesToShipment(projectId: string, milestone: any) {
+    const rawItems = Array.isArray(milestone.itemsJson)
+      ? (milestone.itemsJson as any[])
+      : [];
+
+    if (!rawItems.length) return;
+
+    const quoteItemIds = rawItems
+      .map((i) => i?.quoteItemId as string | undefined)
+      .filter((id): id is string => typeof id === 'string' && !!id);
+
+    let byId = new Map<string, any>();
+
+    if (quoteItemIds.length > 0) {
+      const quoteItems = await (this.prisma as any).quoteItem.findMany({
+        where: { id: { in: quoteItemIds } },
+      });
+
+      byId = new Map<string, any>(
+        quoteItems.map((qi: any) => [qi.id as string, qi]),
+      );
+    }
+
+    const itemsToAppend = rawItems.map((i: any) => {
+      const qi = byId.get(i?.quoteItemId as string);
+      return {
+        quoteItemId: i?.quoteItemId ?? null,
+        quantity:
+          typeof i?.quantity === 'number' && i.quantity > 0
+            ? i.quantity
+            : 1,
+        name: qi?.name ?? null,
+        category: qi?.category ?? null,
+      };
+    });
+
+    const existing = await (this.prisma as any).projectDeviceShipment.findUnique({
+      where: { projectId },
+    });
+
+    if (!existing) {
+      await (this.prisma as any).projectDeviceShipment.create({
+        data: {
+          projectId,
+          milestoneId: milestone.id,
+          itemsJson: itemsToAppend,
+        },
+      });
+      return;
+    }
+
+    const existingItems = Array.isArray(existing.itemsJson)
+      ? (existing.itemsJson as any[])
+      : [];
+
+    await (this.prisma as any).projectDeviceShipment.update({
+      where: { projectId },
+      data: {
+        itemsJson: [...existingItems, ...itemsToAppend],
+      },
+    });
   }
 
   private async createOperationsVisitAndNotify(
