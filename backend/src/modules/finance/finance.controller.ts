@@ -21,6 +21,11 @@ export class FinanceController {
     return this.finance.listBeneficiaries(req.user.id);
   }
 
+  @Get('banks')
+  async listBanks(@Req() req: any) {
+    return this.finance.listBanks(req.user.id);
+  }
+
   @Post('beneficiaries')
   async createBeneficiary(@Req() req: any, @Body() body: any) {
     const { name, bankName, bankCode, accountNumber, accountName } = body ?? {};
@@ -52,4 +57,3 @@ export class FinanceController {
     });
   }
 }
-

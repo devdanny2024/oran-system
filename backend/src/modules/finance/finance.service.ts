@@ -45,9 +45,23 @@ export class FinanceService {
     return { items };
   }
 
+  async listBanks(userId: string) {
+    await this.assertFinanceAccess(userId);
+
+    const banks = await this.paystack.listBanks();
+
+    return {
+      items: banks.map((bank) => ({
+        name: bank.name,
+        code: bank.code,
+        slug: bank.slug ?? null,
+      })),
+    };
+  }
+
   async createBeneficiary(params: {
     userId: string;
-    name: string;
+    name?: string;
     bankName: string;
     bankCode: string;
     accountNumber: string;
@@ -65,9 +79,11 @@ export class FinanceService {
       accountName = resolved.account_name;
     }
 
+    const labelName = (params.name ?? accountName).trim();
+
     const beneficiary = await this.prisma.financeBeneficiary.create({
       data: {
-        name: params.name,
+        name: labelName,
         bankName: params.bankName,
         bankCode: params.bankCode,
         accountNumber: params.accountNumber,

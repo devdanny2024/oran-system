@@ -49,6 +49,12 @@ type FinanceDisbursement = {
 
 const ALLOWED_ROLES = ['ADMIN', 'CFO'];
 
+type Bank = {
+  name: string;
+  code: string;
+  slug?: string | null;
+};
+
 export default function FinancePage() {
   const router = useRouter();
   const [user, setUser] = useState<OranUser | null>(null);
@@ -59,17 +65,17 @@ export default function FinancePage() {
 
   const [beneficiaries, setBeneficiaries] = useState<FinanceBeneficiary[]>([]);
   const [beneficiariesLoading, setBeneficiariesLoading] = useState(false);
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [banksLoading, setBanksLoading] = useState(false);
 
   const [disbursements, setDisbursements] = useState<FinanceDisbursement[]>([]);
   const [disbursementsLoading, setDisbursementsLoading] = useState(false);
 
   const [newBeneficiary, setNewBeneficiary] = useState({
-    name: '',
-    bankName: '',
     bankCode: '',
     accountNumber: '',
-    accountName: '',
   });
+  const [resolvedAccountName, setResolvedAccountName] = useState<string>('');
 
   const [disburseForm, setDisburseForm] = useState({
     beneficiaryId: '',
@@ -197,6 +203,38 @@ export default function FinancePage() {
       }
     };
 
+    const loadBanks = async () => {
+      try {
+        setBanksLoading(true);
+        const res = await fetch('/api/finance/banks');
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load banks.';
+          toast.error(message);
+          return;
+        }
+
+        setBanks(((body as any)?.items ?? []) as Bank[]);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load banks. Please try again.';
+        toast.error(message);
+      } finally {
+        setBanksLoading(false);
+      }
+    };
+
     const loadDisbursements = async () => {
       try {
         setDisbursementsLoading(true);
@@ -236,6 +274,7 @@ export default function FinancePage() {
 
     void loadOverview();
     void loadBeneficiaries();
+    void loadBanks();
     void loadDisbursements();
   }, [user]);
 
@@ -249,12 +288,10 @@ export default function FinancePage() {
 
   const handleCreateBeneficiary = async () => {
     if (
-      !newBeneficiary.name ||
-      !newBeneficiary.bankName ||
       !newBeneficiary.bankCode ||
       !newBeneficiary.accountNumber
     ) {
-      toast.error('Please fill in name, bank and account number.');
+      toast.error('Please fill in bank and account number.');
       return;
     }
 
@@ -263,7 +300,12 @@ export default function FinancePage() {
       const res = await fetch('/api/finance/beneficiaries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newBeneficiary),
+        body: JSON.stringify({
+          bankCode: newBeneficiary.bankCode,
+          bankName:
+            banks.find((b) => b.code === newBeneficiary.bankCode)?.name ?? '',
+          accountNumber: newBeneficiary.accountNumber,
+        }),
       });
       const isJson =
         res.headers
@@ -283,12 +325,10 @@ export default function FinancePage() {
 
       toast.success('Beneficiary added.');
       setNewBeneficiary({
-        name: '',
-        bankName: '',
         bankCode: '',
         accountNumber: '',
-        accountName: '',
       });
+      setResolvedAccountName('');
       setBeneficiaries((prev) => [body as FinanceBeneficiary, ...prev]);
     } catch (error) {
       const message =
@@ -508,31 +548,8 @@ export default function FinancePage() {
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <input
-                className="border rounded-md px-2 py-1 text-xs bg-background"
-                placeholder="Display name (e.g. John Doe)"
-                value={newBeneficiary.name}
-                onChange={(e) =>
-                  setNewBeneficiary((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                  }))
-                }
-              />
-              <input
-                className="border rounded-md px-2 py-1 text-xs bg-background"
-                placeholder="Bank name"
-                value={newBeneficiary.bankName}
-                onChange={(e) =>
-                  setNewBeneficiary((prev) => ({
-                    ...prev,
-                    bankName: e.target.value,
-                  }))
-                }
-              />
-              <input
-                className="border rounded-md px-2 py-1 text-xs bg-background"
-                placeholder="Bank code"
+              <select
+                className="border rounded-md px-2 py-1 text-xs bg-background col-span-2"
                 value={newBeneficiary.bankCode}
                 onChange={(e) =>
                   setNewBeneficiary((prev) => ({
@@ -540,9 +557,18 @@ export default function FinancePage() {
                     bankCode: e.target.value,
                   }))
                 }
-              />
+              >
+                <option value="">
+                  {banksLoading ? 'Loading banks...' : 'Select bank'}
+                </option>
+                {banks.map((bank) => (
+                  <option key={bank.code} value={bank.code}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
               <input
-                className="border rounded-md px-2 py-1 text-xs bg-background"
+                className="border rounded-md px-2 py-1 text-xs bg-background col-span-2"
                 placeholder="Account number"
                 value={newBeneficiary.accountNumber}
                 onChange={(e) =>
@@ -552,17 +578,11 @@ export default function FinancePage() {
                   }))
                 }
               />
-              <input
-                className="border rounded-md px-2 py-1 text-xs bg-background col-span-2"
-                placeholder="Account name (as returned by bank)"
-                value={newBeneficiary.accountName}
-                onChange={(e) =>
-                  setNewBeneficiary((prev) => ({
-                    ...prev,
-                    accountName: e.target.value,
-                  }))
-                }
-              />
+              {resolvedAccountName && (
+                <p className="text-[11px] text-muted-foreground col-span-2">
+                  Resolved name: <span className="font-medium text-foreground">{resolvedAccountName}</span>
+                </p>
+              )}
             </div>
             <Button
               size="sm"

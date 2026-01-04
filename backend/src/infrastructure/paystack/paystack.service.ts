@@ -168,6 +168,32 @@ export class PaystackService {
     };
   }
 
+  async listBanks() {
+    const res = await fetch(
+      'https://api.paystack.co/bank?currency=NGN',
+      {
+        method: 'GET',
+        headers: this.headers,
+      },
+    );
+
+    const body = await res.json();
+    if (!res.ok || body.status !== true) {
+      // eslint-disable-next-line no-console
+      console.error('[Paystack] list banks failed', res.status, body);
+      throw new Error(
+        body?.message ??
+          'Unable to load bank list from Paystack. Please try again.',
+      );
+    }
+
+    return body.data as {
+      name: string;
+      code: string;
+      slug?: string;
+    }[];
+  }
+
   async verifyTransaction(reference: string) {
     const res = await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(
