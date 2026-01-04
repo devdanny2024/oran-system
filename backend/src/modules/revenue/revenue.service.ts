@@ -32,6 +32,12 @@ export class RevenueService {
         planType: PaymentPlanType;
         totalAmount: number;
         collectedAmount: number;
+        devicesCost?: number;
+        technicianCostInstall?: number;
+        technicianCostIntegration?: number;
+        taxAmount?: number;
+        grossRevenue?: number;
+        profit?: number;
       }
     >();
 
@@ -47,6 +53,12 @@ export class RevenueService {
         planType: m.planType as PaymentPlanType,
         totalAmount: 0,
         collectedAmount: 0,
+        devicesCost: 0,
+        technicianCostInstall: 0,
+        technicianCostIntegration: 0,
+        taxAmount: 0,
+        grossRevenue: 0,
+        profit: 0,
       };
 
       existing.totalAmount += amount;
@@ -57,6 +69,80 @@ export class RevenueService {
       }
 
       perProjectMap.set(key, existing);
+    }
+
+    const projectIds = Array.from(perProjectMap.keys());
+
+    // Enrich each project with device and technician costs based on its main quote.
+    for (const projectId of projectIds) {
+      const entry = perProjectMap.get(projectId);
+      if (!entry) continue;
+
+      const quote = await (this.prisma as any).quote.findFirst({
+        where: { projectId },
+        orderBy: [
+          { isSelected: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      if (!quote) {
+        // No quote yet; keep cost/profit fields at zero.
+        continue;
+      }
+
+      let devicesCost = 0;
+      let technicianCostInstall = 0;
+      let technicianCostIntegration = 0;
+
+      for (const item of quote.items as any[]) {
+        const quantity = Number(item.quantity ?? 0);
+        if (!quantity || quantity <= 0) continue;
+
+        const product = item.product as any | undefined;
+        const unitCost = product
+          ? Number(
+              product.ourPrice ?? product.marketPrice ?? item.unitPrice ?? 0,
+            )
+          : Number(item.unitPrice ?? 0);
+
+        devicesCost += unitCost * quantity;
+
+        if (product) {
+          const installTech =
+            Number(product.installTechnicianFee ?? 0) * quantity;
+          const integrationTech =
+            Number(product.integrationTechnicianFee ?? 0) * quantity;
+
+          technicianCostInstall += installTech;
+          technicianCostIntegration += integrationTech;
+        }
+      }
+
+      const grossRevenue = Number(entry.totalAmount ?? 0);
+      const taxAmount = Number((quote as any).taxAmount ?? 0);
+      const technicianCost = technicianCostInstall + technicianCostIntegration;
+
+      const profit =
+        grossRevenue > 0
+          ? grossRevenue - (devicesCost + technicianCost + taxAmount)
+          : 0;
+
+      entry.devicesCost = devicesCost;
+      entry.technicianCostInstall = technicianCostInstall;
+      entry.technicianCostIntegration = technicianCostIntegration;
+      entry.taxAmount = taxAmount;
+      entry.grossRevenue = grossRevenue;
+      entry.profit = profit;
+
+      perProjectMap.set(projectId, entry);
     }
 
     const perProject = Array.from(perProjectMap.values()).sort(
@@ -70,4 +156,3 @@ export class RevenueService {
     };
   }
 }
-
