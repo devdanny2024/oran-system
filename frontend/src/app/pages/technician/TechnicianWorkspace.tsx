@@ -486,6 +486,7 @@ export default function TechnicianWorkspace() {
         </section>
 
         {activeTrip && (
+          <>
           <section className="space-y-3">
             <h2 className="text-sm font-semibold">Trip details</h2>
             <Card className="p-4 text-xs space-y-3">
@@ -1099,6 +1100,7 @@ export default function TechnicianWorkspace() {
               </div>
             </Card>
           </section>
+          </>
         )}
       </main>
     </div>
