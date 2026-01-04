@@ -31,6 +31,7 @@ export default function OnboardingFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userDisplayName, setUserDisplayName] = useState<string>('');
   const [data, setData] = useState<OnboardingData>({
     projectStatus: '',
     buildingType: '',
@@ -45,9 +46,17 @@ export default function OnboardingFlow() {
     if (!stored) return;
 
     try {
-      const parsed = JSON.parse(stored) as { id?: string };
+      const parsed = JSON.parse(stored) as {
+        id?: string;
+        name?: string | null;
+        email?: string;
+      };
       if (parsed?.id) {
         setUserId(parsed.id);
+      }
+      const displayName = (parsed.name || parsed.email || '').trim();
+      if (displayName) {
+        setUserDisplayName(displayName);
       }
     } catch {
       // ignore parse errors
@@ -67,6 +76,11 @@ export default function OnboardingFlow() {
       let currentProjectId = projectId;
 
       if (!currentProjectId) {
+        const displayName = userDisplayName?.trim();
+        const projectName = displayName
+          ? `${displayName}'s ORAN Smart Home Project`
+          : 'My ORAN Smart Home Project';
+
         const projectResult = await postJson<
           { id: string },
           {
@@ -76,7 +90,7 @@ export default function OnboardingFlow() {
             roomsCount?: number;
           }
         >('/projects', {
-          name: 'My ORAN Smart Home Project',
+          name: projectName,
           userId,
           buildingType: data.buildingType,
           roomsCount: data.roomCount,
