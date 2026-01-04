@@ -30,6 +30,12 @@ type RevenueProject = {
   planType: 'MILESTONE_3' | 'EIGHTY_TEN_TEN';
   totalAmount: number;
   collectedAmount: number;
+  devicesCost?: number;
+  technicianCostInstall?: number;
+  technicianCostIntegration?: number;
+  taxAmount?: number;
+  grossRevenue?: number;
+  profit?: number;
 };
 
 const ALLOWED_ROLES = ['ADMIN'];
@@ -140,6 +146,16 @@ export default function AdminDashboard() {
             ...p,
             totalAmount: Number(p.totalAmount ?? 0),
             collectedAmount: Number(p.collectedAmount ?? 0),
+            devicesCost: Number((p as any).devicesCost ?? 0),
+            technicianCostInstall: Number(
+              (p as any).technicianCostInstall ?? 0,
+            ),
+            technicianCostIntegration: Number(
+              (p as any).technicianCostIntegration ?? 0,
+            ),
+            taxAmount: Number((p as any).taxAmount ?? 0),
+            grossRevenue: Number((p as any).grossRevenue ?? p.totalAmount ?? 0),
+            profit: Number((p as any).profit ?? 0),
           })),
         );
       } catch (error) {
@@ -448,4 +464,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
