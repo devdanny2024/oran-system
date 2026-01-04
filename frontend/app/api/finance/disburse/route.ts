@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backendFetch } from '../../../../src/app/lib/backendFetch';
 
 export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => ({}));
 
-  const res = await backendFetch('/finance/disburse', {
+  const BACKEND_API_BASE_URL =
+    process.env.BACKEND_API_BASE_URL ||
+    'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
+
+  const res = await fetch(`${BACKEND_API_BASE_URL}/finance/disburse`, {
     method: 'POST',
-    body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
   const body = await res.text();
 
@@ -16,4 +19,3 @@ export async function POST(req: NextRequest) {
     headers: res.headers,
   });
 }
-

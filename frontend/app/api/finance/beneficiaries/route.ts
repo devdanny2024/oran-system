@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backendFetch } from '../../../../src/app/lib/backendFetch';
 
 export async function GET() {
-  const res = await backendFetch('/finance/beneficiaries', {
-    method: 'GET',
-  });
+  const BACKEND_API_BASE_URL =
+    process.env.BACKEND_API_BASE_URL ||
+    'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
+
+  const res = await fetch(
+    `${BACKEND_API_BASE_URL}/finance/beneficiaries`,
+    {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    },
+  );
+
   const body = await res.text();
 
   return new NextResponse(body, {
@@ -16,11 +24,19 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => ({}));
 
-  const res = await backendFetch('/finance/beneficiaries', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const BACKEND_API_BASE_URL =
+    process.env.BACKEND_API_BASE_URL ||
+    'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
+
+  const res = await fetch(
+    `${BACKEND_API_BASE_URL}/finance/beneficiaries`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+
   const body = await res.text();
 
   return new NextResponse(body, {
@@ -28,4 +44,3 @@ export async function POST(req: NextRequest) {
     headers: res.headers,
   });
 }
-
