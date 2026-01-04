@@ -18,6 +18,7 @@ import { EmailModule } from '../../infrastructure/email/email.module';
 import { AiModule } from '../../infrastructure/ai/ai.module';
 import { PaystackModule } from '../../infrastructure/paystack/paystack.module';
 import { RevenueModule } from '../revenue/revenue.module';
+import { ServiceFeesModule } from '../service-fees/service-fees.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { RevenueModule } from '../revenue/revenue.module';
     QuotesModule,
     AgreementsModule,
     MilestonesModule,
+    ServiceFeesModule,
     PaymentPlanModule,
   ],
   controllers: [AppController],
