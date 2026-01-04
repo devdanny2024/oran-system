@@ -49,6 +49,29 @@ type Quote = {
   items: { id: string }[];
 };
 
+type DeviceShipmentStatus =
+  | 'NOT_PREPARED'
+  | 'WRAPPING'
+  | 'IN_TRANSIT'
+  | 'NIGERIA_STORE'
+  | 'DELIVERED';
+
+type ProjectDeviceShipment = {
+  id: string;
+  projectId: string;
+  milestoneId?: string | null;
+  status: DeviceShipmentStatus;
+  itemsJson: {
+    quoteItemId?: string;
+    quantity?: number;
+    name?: string | null;
+    category?: string | null;
+  }[];
+  estimatedFrom?: string | null;
+  estimatedTo?: string | null;
+  locationNote?: string | null;
+};
+
 const statusLabel = (status: ProjectStatus) =>
   status.toLowerCase().replace(/_/g, ' ');
 
@@ -115,6 +138,9 @@ export default function ProjectDetailPage() {
       }[];
     }[]
   >([]);
+  const [deviceShipment, setDeviceShipment] =
+    useState<ProjectDeviceShipment | null>(null);
+  const [deviceShipmentLoading, setDeviceShipmentLoading] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -294,6 +320,31 @@ export default function ProjectDetailPage() {
           }
         } catch {
           // ignore
+        }
+
+        // Load device shipment for this project so the customer
+        // can see which devices are tied to the first payment and
+        // their logistics status.
+        try {
+          setDeviceShipmentLoading(true);
+          const resShipment = await fetch(
+            `/api/projects/${projectId}/device-shipment`,
+          );
+          const isJsonShipment =
+            resShipment.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const bodyShipment = isJsonShipment
+            ? await resShipment.json()
+            : await resShipment.text();
+          if (resShipment.ok && bodyShipment && typeof bodyShipment === 'object') {
+            setDeviceShipment(bodyShipment as ProjectDeviceShipment);
+          }
+        } catch {
+          // ignore for now
+        } finally {
+          setDeviceShipmentLoading(false);
         }
       } catch (error) {
         const message =
@@ -933,6 +984,54 @@ export default function ProjectDetailPage() {
               );
             })}
           </div>
+        </Card>
+      )}
+
+      {deviceShipment && (
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Devices & logistics</h2>
+            <span className="text-xs text-muted-foreground">
+              {deviceShipmentLoading
+                ? 'Loading...'
+                : deviceShipment.status === 'WRAPPING'
+                  ? 'Wrapping & preparation'
+                  : deviceShipment.status === 'IN_TRANSIT'
+                    ? 'In transit'
+                    : deviceShipment.status === 'NIGERIA_STORE'
+                      ? 'At Nigeria store'
+                      : deviceShipment.status === 'DELIVERED'
+                        ? 'Delivered'
+                        : 'Not prepared yet'}
+            </span>
+          </div>
+          {deviceShipment.itemsJson.length > 0 ? (
+            <div className="space-y-2 text-xs">
+              <p className="text-muted-foreground">
+                These are the core devices tied to your first payment milestone.
+              </p>
+              <ul className="list-disc list-inside text-[11px] text-muted-foreground">
+                {deviceShipment.itemsJson.map((item, index) => (
+                  <li key={item.quoteItemId ?? index}>
+                    {item.name ?? 'Device'} &times; {item.quantity ?? 1}{' '}
+                    {item.category
+                      ? `(${item.category.toLowerCase()})`
+                      : ''}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-muted-foreground">
+                Typical device delivery window is 1–3 weeks from your first
+                milestone payment. ORAN will update this status as your devices
+                move from wrapping to transit and into our Nigeria store.
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Once your first payment milestone is confirmed, ORAN will lock in
+              devices for this phase and show their logistics status here.
+            </p>
+          )}
         </Card>
       )}
 
