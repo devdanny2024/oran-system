@@ -127,6 +127,46 @@ export default function Page() {
       };
     }, [trips]);
 
+  const workProgress = useMemo(() => {
+    if (trips.length === 0) {
+      return {
+        completedPercent: 0,
+        inProgressPercent: 0,
+        scheduledPercent: 0,
+        completedCount: 0,
+        inProgressCount: 0,
+        scheduledCount: 0,
+        total: 0,
+      };
+    }
+
+    const total = trips.length;
+    const completedCount = trips.filter((t) => t.status === "COMPLETED").length;
+    const inProgressCount = trips.filter(
+      (t) => t.status === "IN_PROGRESS",
+    ).length;
+    const scheduledCount = trips.filter(
+      (t) => t.status === "SCHEDULED",
+    ).length;
+
+    const completedPercent =
+      total > 0 ? Math.round((completedCount / total) * 100) : 0;
+    const inProgressPercent =
+      total > 0 ? Math.round((inProgressCount / total) * 100) : 0;
+    const scheduledPercent =
+      total > 0 ? Math.round((scheduledCount / total) * 100) : 0;
+
+    return {
+      completedPercent,
+      inProgressPercent,
+      scheduledPercent,
+      completedCount,
+      inProgressCount,
+      scheduledCount,
+      total,
+    };
+  }, [trips]);
+
   const upcomingTrip = useMemo(() => {
     const candidates = trips.filter((t) =>
       ["SCHEDULED", "IN_PROGRESS"].includes(t.status),
@@ -421,34 +461,42 @@ export default function Page() {
         <h2 className="text-lg font-semibold">Work Progress</h2>
         <div className="space-y-4 text-sm">
           <ProgressRow
-            label="Lighting Automation"
-            status="complete"
-            percent={100}
-            detail="6 devices"
+            label="Visits completed"
+            status={
+              workProgress.total === 0
+                ? "not-started"
+                : workProgress.completedPercent === 100
+                ? "complete"
+                : workProgress.completedPercent > 0
+                ? "in-progress"
+                : "not-started"
+            }
+            percent={workProgress.completedPercent}
+            detail={`${workProgress.completedCount} of ${workProgress.total} visits`}
           />
           <ProgressRow
-            label="Climate Control"
-            status="complete"
-            percent={100}
-            detail="4 units"
+            label="Visits in progress"
+            status={
+              workProgress.inProgressCount > 0
+                ? "in-progress"
+                : "not-started"
+            }
+            percent={workProgress.inProgressPercent}
+            detail={`${workProgress.inProgressCount} active visit${
+              workProgress.inProgressCount === 1 ? "" : "s"
+            }`}
           />
           <ProgressRow
-            label="Access Control"
-            status="in-progress"
-            percent={60}
-            detail="3 / 5 devices"
-          />
-          <ProgressRow
-            label="Surveillance System"
-            status="in-progress"
-            percent={40}
-            detail="2 / 6 cameras"
-          />
-          <ProgressRow
-            label="Gate Automation"
-            status="not-started"
-            percent={0}
-            detail="Not started"
+            label="Visits scheduled"
+            status={
+              workProgress.scheduledCount > 0
+                ? "in-progress"
+                : "not-started"
+            }
+            percent={workProgress.scheduledPercent}
+            detail={`${workProgress.scheduledCount} upcoming visit${
+              workProgress.scheduledCount === 1 ? "" : "s"
+            }`}
           />
         </div>
       </Card>
