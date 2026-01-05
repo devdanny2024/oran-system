@@ -229,34 +229,6 @@ export class ProjectsService {
       }
     }
 
-    // Update project status so admin/ops can see this in their views.
-    await this.prisma.project.update({
-      where: { id },
-      data: { status: 'INSPECTION_REQUESTED' as any },
-    });
-
-    // Notify admins via email.
-    const projectUrl = `${this.email.getFrontendBaseUrl()}/dashboard/projects/${encodeURIComponent(
-      project.id,
-    )}`;
-
-    await this.email.sendInspectionRequestedEmail({
-      projectName: project.name,
-      customerName: project.user.name,
-      customerEmail: project.user.email,
-      siteAddress: address || 'Not provided',
-      contactPhone: explicitPhone || project.onboarding?.contactPhone || '',
-      fee,
-      region: isLagos
-        ? 'LAGOS'
-        : isAbuja
-        ? 'ABUJA'
-        : isWesternNonLagos
-        ? 'WEST_NEAR'
-        : 'OTHER',
-      projectUrl,
-    });
-
     // Prepare Paystack inspection fee payment.
     let authorizationUrl: string | null = null;
 
@@ -310,6 +282,77 @@ export class ProjectsService {
         : 'OTHER',
       siteAddress: address || null,
       authorizationUrl,
+    };
+  }
+
+  async verifyInspectionPaystack(projectId: string, reference: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: { onboarding: true, user: true },
+    });
+
+    if (!project || !project.user) {
+      throw new BadRequestException(
+        'Project or project owner not found for inspection payment.',
+      );
+    }
+
+    const data = await this.paystack.verifyTransaction(reference);
+
+    if (data.status !== 'success') {
+      throw new BadRequestException(
+        'Inspection payment was not successful. Please try again.',
+      );
+    }
+
+    const metadata = (data.metadata ?? {}) as any;
+    const metaType = metadata.type as string | undefined;
+    const metaProjectId = metadata.projectId as string | undefined;
+
+    if (metaType !== 'INSPECTION_FEE' || !metaProjectId) {
+      throw new BadRequestException(
+        'Payment metadata missing inspection information.',
+      );
+    }
+
+    if (metaProjectId !== projectId) {
+      throw new BadRequestException(
+        'Inspection payment does not belong to this project.',
+      );
+    }
+
+    // Mark project as having a requested inspection.
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { status: 'INSPECTION_REQUESTED' as any },
+    });
+
+    const address = project.onboarding?.siteAddress ?? 'Not provided';
+    const phone = project.onboarding?.contactPhone ?? '';
+
+    const feeNaira = data.amount / 100;
+
+    // Notify admins via email now that payment is confirmed.
+    const projectUrl = `${this.email.getFrontendBaseUrl()}/dashboard/projects/${encodeURIComponent(
+      project.id,
+    )}`;
+
+    await this.email.sendInspectionRequestedEmail({
+      projectName: project.name,
+      customerName: project.user.name,
+      customerEmail: project.user.email,
+      siteAddress: address,
+      contactPhone: phone,
+      fee: feeNaira,
+      region: (metadata.region as any) ?? 'OTHER',
+      projectUrl,
+    });
+
+    return {
+      projectId,
+      amountPaid: feeNaira,
+      currency: data.currency,
+      status: data.status,
     };
   }
 

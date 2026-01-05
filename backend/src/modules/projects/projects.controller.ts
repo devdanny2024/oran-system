@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 
@@ -27,8 +36,23 @@ export class ProjectsController {
   }
 
   @Post(':id/request-inspection')
-  requestInspection(@Param('id') id: string) {
-    return this.projectsService.requestInspection(id);
+  requestInspection(
+    @Param('id') id: string,
+    @Body()
+    body?: {
+      siteAddress?: string;
+      contactPhone?: string;
+    },
+  ) {
+    return this.projectsService.requestInspection(id, body);
+  }
+
+  @Get(':id/inspection/paystack/verify')
+  verifyInspectionPaystack(
+    @Param('id') id: string,
+    @Query('reference') reference: string,
+  ) {
+    return this.projectsService.verifyInspectionPaystack(id, reference);
   }
 
   @Get(':id/device-shipment')
