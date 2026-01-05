@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Sheet, SheetContent } from '../../components/ui/sheet';
 import { Badge } from '../../components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
@@ -33,6 +34,7 @@ export default function Dashboard({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<OranUser | null>(null);
@@ -42,10 +44,13 @@ export default function Dashboard({
     if (typeof window === 'undefined') return;
     try {
       const raw = window.localStorage.getItem('oran_user');
-      if (raw) {
-        const parsed = JSON.parse(raw) as OranUser;
-        setUser(parsed);
+      if (!raw) {
+        router.replace('/login');
+        return;
       }
+
+      const parsed = JSON.parse(raw) as OranUser;
+      setUser(parsed);
 
       const params = new URLSearchParams(window.location.search);
       if (params.get('inspection') === 'success') {

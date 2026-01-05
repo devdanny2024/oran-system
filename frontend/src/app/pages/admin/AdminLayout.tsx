@@ -66,10 +66,10 @@ export default function AdminLayout({
 
   const navItems = [
     { name: 'Overview', href: '/admin', icon: LayoutDashboard },
+    { name: 'Inspection requests', href: '/admin/inspections', icon: Wrench },
     { name: 'Products & pricing', href: '/admin/products', icon: Tag },
     { name: 'Finance', href: '/admin/finance', icon: Wallet },
     { name: 'Technicians', href: '/admin/technicians', icon: Users },
-    { name: 'Technician workspace', href: '/technician', icon: Wrench },
   ];
 
   return (

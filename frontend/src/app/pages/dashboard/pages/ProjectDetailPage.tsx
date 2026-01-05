@@ -32,6 +32,7 @@ type Onboarding = {
 
 type Project = {
   id: string;
+  userId: string;
   name: string;
   status: ProjectStatus;
   buildingType: string | null;
@@ -166,6 +167,24 @@ export default function ProjectDetailPage() {
           toast.error(message);
           router.push('/dashboard/projects');
           return;
+        }
+
+        // Basic client-side access control: only project owner may view.
+        try {
+          if (typeof window !== 'undefined') {
+            const stored = window.localStorage.getItem('oran_user');
+            if (stored) {
+              const parsed = JSON.parse(stored) as { id?: string };
+              const ownerId = (body as any)?.userId as string | undefined;
+              if (parsed?.id && ownerId && parsed.id !== ownerId) {
+                toast.error('You do not have access to this project.');
+                router.push('/dashboard/projects');
+                return;
+              }
+            }
+          }
+        } catch {
+          // If we cannot read session, fall through and let backend enforce.
         }
 
         setProject(body as Project);
