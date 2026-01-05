@@ -24,6 +24,7 @@ export class OperationsService {
   async createTrip(payload: CreateTripDto) {
     const project = await this.prisma.project.findUnique({
       where: { id: payload.projectId },
+      include: { user: true, onboarding: true },
     });
 
     if (!project) {
@@ -131,6 +132,33 @@ export class OperationsService {
         },
       ],
     });
+
+    // If this is the first scheduled visit after an inspection request,
+    // mark the project as INSPECTION_SCHEDULED and notify the customer.
+    if (
+      project.status === 'INSPECTION_REQUESTED' ||
+      project.status === 'INSPECTION_SCHEDULED'
+    ) {
+      await this.prisma.project.update({
+        where: { id: project.id },
+        data: { status: 'INSPECTION_SCHEDULED' as any },
+      });
+
+      if (project.user) {
+        const projectUrl = `${this.emailService.getFrontendBaseUrl()}/dashboard/projects/${encodeURIComponent(
+          project.id,
+        )}`;
+
+        await this.emailService.sendInspectionScheduledEmail({
+          to: project.user.email,
+          name: project.user.name ?? undefined,
+          projectName: project.name,
+          siteAddress: project.onboarding?.siteAddress ?? 'Not provided',
+          scheduledFor,
+          projectUrl,
+        });
+      }
+    }
 
     return trip;
   }

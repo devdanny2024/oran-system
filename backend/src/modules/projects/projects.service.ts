@@ -332,6 +332,21 @@ export class ProjectsService {
 
     const feeNaira = data.amount / 100;
 
+    // Record a simple billing invoice entry for this inspection payment.
+    await (this.prisma as any).billingInvoice.create({
+      data: {
+        userId: project.userId,
+        projectId: project.id,
+        type: 'INSPECTION_FEE',
+        description: 'Site inspection fee',
+        amount: feeNaira,
+        currency: data.currency ?? 'NGN',
+        status: 'PAID',
+        externalReference: data.reference ?? reference,
+        paidAt: new Date(),
+      },
+    });
+
     // Notify admins via email now that payment is confirmed.
     const projectUrl = `${this.email.getFrontendBaseUrl()}/dashboard/projects/${encodeURIComponent(
       project.id,
@@ -345,6 +360,16 @@ export class ProjectsService {
       contactPhone: phone,
       fee: feeNaira,
       region: (metadata.region as any) ?? 'OTHER',
+      projectUrl,
+    });
+
+    // Notify the customer that their inspection payment has been received.
+    await this.email.sendInspectionPaymentReceivedEmail({
+      to: project.user.email,
+      name: project.user.name,
+      projectName: project.name,
+      siteAddress: address,
+      fee: feeNaira,
       projectUrl,
     });
 

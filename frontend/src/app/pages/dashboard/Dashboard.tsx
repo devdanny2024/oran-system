@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Button } from '../../components/ui/button';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import {
@@ -34,6 +34,7 @@ export default function Dashboard({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<OranUser | null>(null);
 
@@ -196,6 +197,18 @@ export default function Dashboard({
                   <span className="font-semibold">{user.email}</span>. Once you
                   confirm it, we&apos;ll fully activate your ORAN dashboard for
                   quotes, documents, and payments.
+                </AlertDescription>
+              </Alert>
+            )}
+            {searchParams.get('inspection') === 'success' && (
+              <Alert className="bg-emerald-50 border-emerald-300">
+                <AlertTitle className="text-emerald-900">
+                  Inspection request received
+                </AlertTitle>
+                <AlertDescription className="text-emerald-800">
+                  Your inspection payment has been confirmed. A technician will be assigned
+                  to your project and you&apos;ll receive a confirmation email with the date
+                  and time for the visit.
                 </AlertDescription>
               </Alert>
             )}

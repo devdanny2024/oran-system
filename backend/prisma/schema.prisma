@@ -268,6 +268,21 @@ model FinanceDisbursement {
   updatedAt       DateTime                   @updatedAt
 }
 
+model BillingInvoice {
+  id               String               @id @default(cuid())
+  userId           String
+  projectId        String?
+  type             BillingInvoiceType
+  description      String
+  amount           Decimal
+  currency         String               @default("NGN")
+  status           BillingInvoiceStatus @default(PAID)
+  externalReference String?
+  paidAt           DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+}
+
 enum FinanceDisbursementStatus {
   PENDING
   PENDING_ADMIN_APPROVAL
@@ -287,6 +302,18 @@ enum ProjectStatus {
   PAYMENT_PLAN_SELECTED
   IN_PROGRESS
   COMPLETED
+}
+
+enum BillingInvoiceStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum BillingInvoiceType {
+  INSPECTION_FEE
+  MILESTONE_PAYMENT
+  OTHER
 }
 
 enum ProductCategory {

@@ -282,6 +282,50 @@ export class EmailService {
     });
   }
 
+  async sendInspectionScheduledEmail(params: {
+    to: string;
+    name?: string | null;
+    projectName: string;
+    siteAddress: string;
+    scheduledFor: Date;
+    projectUrl: string;
+  }) {
+    const greetingName = params.name?.trim() || 'there';
+
+    const when = params.scheduledFor.toLocaleString('en-NG', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const html = this.buildBaseTemplate({
+      title: 'Your ORAN site inspection has been scheduled',
+      intro: `Hi ${greetingName}, we have scheduled your ORAN site inspection.`,
+      bodyLines: [
+        `Project: <strong>${params.projectName}</strong>`,
+        `Site address: ${params.siteAddress || 'Not provided'}`,
+        `Inspection date & time: <strong>${when}</strong>`,
+        'A member of our technician team will be on site at this time to review your space, confirm required devices and answer any questions you may have.',
+      ],
+      action: {
+        label: 'View project details',
+        url: params.projectUrl,
+      },
+      footer:
+        'If you need to reschedule this inspection, please reply to this email or contact ORAN support at least 24 hours in advance.',
+    });
+
+    await this.sendEmail({
+      to: params.to,
+      subject: 'Your ORAN site inspection has been scheduled',
+      html,
+    });
+  }
+
   async sendInspectionRequestedEmail(params: {
     projectName: string;
     customerName?: string | null;
@@ -332,6 +376,41 @@ export class EmailService {
     await this.sendEmail({
       to: adminTo,
       subject: 'New ORAN site inspection request',
+      html,
+    });
+  }
+
+  async sendInspectionPaymentReceivedEmail(params: {
+    to: string;
+    name?: string | null;
+    projectName: string;
+    siteAddress: string;
+    fee: number;
+    projectUrl: string;
+  }) {
+    const greetingName = params.name?.trim() || 'there';
+    const feeFormatted = `₦${params.fee.toLocaleString('en-NG')}`;
+
+    const html = this.buildBaseTemplate({
+      title: 'Your ORAN inspection payment has been received',
+      intro: `Hi ${greetingName}, thank you for requesting an ORAN site inspection.`,
+      bodyLines: [
+        `Project: <strong>${params.projectName}</strong>`,
+        `Site address: ${params.siteAddress || 'Not provided'}`,
+        `Inspection fee paid: <strong>${feeFormatted}</strong>`,
+        'Our team will now review your request, assign an available technician and confirm the inspection date and time shortly.',
+      ],
+      action: {
+        label: 'View your project',
+        url: params.projectUrl,
+      },
+      footer:
+        'If you did not initiate this inspection request, please contact ORAN support immediately.',
+    });
+
+    await this.sendEmail({
+      to: params.to,
+      subject: 'Your ORAN inspection payment has been received',
       html,
     });
   }

@@ -71,7 +71,7 @@ export default function PaystackCallbackPage() {
 
         const successMessage =
           flowType === 'inspection'
-            ? 'Inspection payment verified successfully. Redirecting you to your project...'
+            ? 'Inspection payment verified successfully. A technician will be assigned to your project soon...'
             : 'Payment verified successfully. Redirecting you to your operations timeline...';
 
         setMessage(successMessage);
@@ -79,7 +79,7 @@ export default function PaystackCallbackPage() {
 
         setTimeout(() => {
           if (flowType === 'inspection') {
-            router.push(`/dashboard/projects/${projectId}`);
+            router.push(`/dashboard?inspection=success`);
           } else {
             router.push(`/dashboard/operations?projectId=${projectId}`);
           }
