@@ -126,7 +126,8 @@ export class RevenueService {
         }
       }
 
-      const grossRevenue = Number(entry.totalAmount ?? 0);
+      // Only treat amounts actually collected as revenue when computing profit.
+      const grossRevenue = Number(entry.collectedAmount ?? 0);
       const taxAmount = Number((quote as any).taxAmount ?? 0);
       const technicianCost = technicianCostInstall + technicianCostIntegration;
 
