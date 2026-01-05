@@ -32,10 +32,11 @@ export class FinanceService {
   async listBeneficiaries(userId: string) {
     await this.assertFinanceAccess(userId);
 
-    // For now, return an empty list so the
-    // frontend finance page can load without
-    // depending on new DB tables being present.
-    return { items: [] };
+    const items = await this.prisma.financeBeneficiary.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { items };
   }
 
   async listBanks(userId: string) {
@@ -98,10 +99,12 @@ export class FinanceService {
   async listDisbursements(userId: string) {
     await this.assertFinanceAccess(userId);
 
-    // For now, return an empty list so the
-    // frontend finance page can load without
-    // depending on new DB tables being present.
-    return { items: [] };
+    const items = await this.prisma.financeDisbursement.findMany({
+      include: { beneficiary: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return { items };
   }
 
   async createDisbursement(params: {
