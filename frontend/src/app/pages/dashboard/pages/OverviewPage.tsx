@@ -8,12 +8,25 @@ import { Progress } from '../../../components/ui/progress';
 import { Button } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../../components/ui/dialog';
 import { Home, DollarSign, FolderKanban, ArrowRight, CheckCircle, Wrench, Camera } from 'lucide-react';
 import Link from 'next/link';
 
 export default function OverviewPage() {
   const router = useRouter();
   const [requestingInspection, setRequestingInspection] = useState(false);
+  const [inspectionProjectId, setInspectionProjectId] = useState<string | null>(null);
+  const [inspectionOpen, setInspectionOpen] = useState(false);
+  const [inspectionAddress, setInspectionAddress] = useState('');
+  const [inspectionPhone, setInspectionPhone] = useState('');
+  const [submittingInspection, setSubmittingInspection] = useState(false);
 
   const activeProject = {
     name: 'Living Room Smart Home',
@@ -104,7 +117,10 @@ export default function OverviewPage() {
       }
 
       const projectId = items[0].id;
-      router.push(`/dashboard/projects/${encodeURIComponent(projectId)}`);
+      setInspectionProjectId(projectId);
+      setInspectionAddress('');
+      setInspectionPhone('');
+      setInspectionOpen(true);
     } catch (error) {
       const message =
         error instanceof Error
@@ -113,6 +129,71 @@ export default function OverviewPage() {
       toast.error(message);
     } finally {
       setRequestingInspection(false);
+    }
+  };
+
+  const submitInspectionFromOverview = async () => {
+    if (!inspectionProjectId) {
+      toast.error('Unable to determine which project to use for inspection.');
+      return;
+    }
+
+    const address = inspectionAddress.trim();
+    const phone = inspectionPhone.trim();
+
+    if (!address || !phone) {
+      toast.error('Please provide both site address and a phone number for inspection.');
+      return;
+    }
+
+    try {
+      setSubmittingInspection(true);
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(inspectionProjectId)}/request-inspection`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            siteAddress: address,
+            contactPhone: phone,
+          }),
+        },
+      );
+
+      const isJson =
+        res.headers.get('content-type')?.toLowerCase().includes('application/json') ?? false;
+      const body = isJson ? await res.json() : await res.text();
+
+      if (!res.ok) {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ?? 'Unable to request site inspection. Please try again.';
+        toast.error(message);
+        return;
+      }
+
+      const fee = Number((body as any)?.inspectionFee ?? 0);
+      const region = (body as any)?.inferredRegion ?? 'your location';
+      const authorizationUrl = (body as any)?.authorizationUrl as string | undefined;
+
+      toast.success(
+        `Inspection requested. Fee: ₦${fee.toLocaleString()} for ${region.toLowerCase()}.`,
+      );
+
+      setInspectionOpen(false);
+
+      if (authorizationUrl) {
+        window.location.href = authorizationUrl;
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to request site inspection. Please try again.';
+      toast.error(message);
+    } finally {
+      setSubmittingInspection(false);
     }
   };
 
@@ -148,6 +229,73 @@ export default function OverviewPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={inspectionOpen} onOpenChange={setInspectionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request a site inspection</DialogTitle>
+            <DialogDescription>
+              Enter the site address and a representative phone number. ORAN will assign a technician
+              and redirect you to Paystack to pay the inspection fee.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-xs">
+            <div className="grid gap-2 md:grid-cols-2">
+              <p className="text-muted-foreground">
+                Lagos sites: <span className="font-semibold text-foreground">₦15,000</span>
+              </p>
+              <p className="text-muted-foreground">
+                South-West near Lagos (e.g. Ogun, Osun, Oyo, Ibadan, Ekiti, Ondo, Kwara):
+                <span className="font-semibold text-foreground"> ₦30,000</span>
+              </p>
+              <p className="text-muted-foreground">
+                Abuja sites: <span className="font-semibold text-foreground">₦15,000</span>
+              </p>
+              <p className="text-muted-foreground">
+                Other locations: <span className="font-semibold text-foreground">₦100,000</span>
+              </p>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted-foreground">Site address</span>
+                <input
+                  className="border rounded-md px-2 py-1 text-xs bg-background w-full"
+                  placeholder="Street, area, city and state"
+                  value={inspectionAddress}
+                  onChange={(event) => setInspectionAddress(event.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] text-muted-foreground">
+                  Representative phone number
+                </span>
+                <input
+                  className="border rounded-md px-2 py-1 text-xs bg-background w-full"
+                  placeholder="Phone number we should call"
+                  value={inspectionPhone}
+                  onChange={(event) => setInspectionPhone(event.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setInspectionOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={submittingInspection}
+              onClick={submitInspectionFromOverview}
+            >
+              {submittingInspection ? 'Submitting...' : 'Continue to payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Active Project Banner */}
       <Card className="border-primary bg-primary/5">
