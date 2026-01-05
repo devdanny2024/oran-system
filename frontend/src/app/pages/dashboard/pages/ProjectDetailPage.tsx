@@ -1425,6 +1425,138 @@ export default function ProjectDetailPage() {
       </Card>
 
       <Card className="p-4 space-y-3">
+        <h2 className="text-sm font-semibold">Site inspection</h2>
+        <p className="text-xs text-muted-foreground">
+          Request a technician to visit your site, confirm wiring and device
+          needs and prepare an inspection-based quote. An inspection fee applies
+          based on your location.
+        </p>
+        <div className="grid gap-2 text-[11px] md:grid-cols-2">
+          <p className="text-muted-foreground">
+            Lagos sites: <span className="font-semibold text-foreground">₦15,000</span>
+          </p>
+          <p className="text-muted-foreground">
+            South-West near Lagos (e.g. Ogun, Osun, Oyo, Ibadan, Ekiti, Ondo, Kwara):
+            <span className="font-semibold text-foreground"> ₦30,000</span>
+          </p>
+          <p className="text-muted-foreground">
+            Abuja sites: <span className="font-semibold text-foreground">₦15,000</span>
+          </p>
+          <p className="text-muted-foreground">
+            Other locations: <span className="font-semibold text-foreground">₦100,000</span>
+          </p>
+        </div>
+        <div className="space-y-2 text-xs">
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">
+                Site address
+              </span>
+              <input
+                className="border rounded-md px-2 py-1 text-xs bg-background w-full"
+                placeholder="Street, area, city and state"
+                value={onboarding?.siteAddress ?? ''}
+                onChange={(event) => {
+                  // local-only update; backend will be updated on request
+                  if (!onboarding) return;
+                  (onboarding as any).siteAddress = event.target.value;
+                }}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">
+                Representative phone number
+              </span>
+              <input
+                className="border rounded-md px-2 py-1 text-xs bg-background w-full"
+                placeholder="Phone number we should call"
+                value={onboarding?.contactPhone ?? ''}
+                onChange={(event) => {
+                  if (!onboarding) return;
+                  (onboarding as any).contactPhone = event.target.value;
+                }}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-muted-foreground max-w-md">
+              When you request an inspection, ORAN will notify our operations
+              team, assign an available technician and redirect you to Paystack
+              to pay the inspection fee.
+            </p>
+            <Button
+              size="sm"
+              onClick={async () => {
+                if (!project) return;
+                const address = onboarding?.siteAddress?.trim() ?? '';
+                const phone = onboarding?.contactPhone?.trim() ?? '';
+
+                if (!address || !phone) {
+                  toast.error(
+                    'Please provide both site address and a phone number for inspection.',
+                  );
+                  return;
+                }
+
+                try {
+                  const res = await fetch(
+                    `/api/projects/${encodeURIComponent(project.id)}/request-inspection`,
+                    {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        siteAddress: address,
+                        contactPhone: phone,
+                      }),
+                    },
+                  );
+
+                  const isJson =
+                    res.headers
+                      .get('content-type')
+                      ?.toLowerCase()
+                      .includes('application/json') ?? false;
+                  const body = isJson ? await res.json() : await res.text();
+
+                  if (!res.ok) {
+                    const message =
+                      typeof body === 'string'
+                        ? body
+                        : body?.message ??
+                          'Unable to request site inspection. Please try again.';
+                    toast.error(message);
+                    return;
+                  }
+
+                  const fee = Number((body as any)?.inspectionFee ?? 0);
+                  const region =
+                    (body as any)?.inferredRegion ?? 'your location';
+                  const authorizationUrl = (body as any)
+                    ?.authorizationUrl as string | undefined;
+
+                  toast.success(
+                    `Inspection requested. Fee: ₦${fee.toLocaleString()} for ${region.toLowerCase()}.`,
+                  );
+
+                  if (authorizationUrl) {
+                    window.location.href = authorizationUrl;
+                  }
+                } catch (error) {
+                  const message =
+                    error instanceof Error
+                      ? error.message
+                      : 'Unable to request site inspection. Please try again.';
+                  toast.error(message);
+                }
+              }}
+            >
+              Request site inspection
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-4 space-y-3">
         <h2 className="text-sm font-semibold">Selected features</h2>
         {features && features.length > 0 ? (
           <div className="flex flex-wrap gap-2 text-xs">

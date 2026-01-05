@@ -5,16 +5,19 @@ const BACKEND_API_BASE_URL =
   'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: { id: string } },
 ) {
   const projectId = context.params.id;
+  const body = await request.json().catch(() => null);
 
   try {
     const response = await fetch(
       `${BACKEND_API_BASE_URL}/projects/${projectId}/request-inspection`,
       {
         method: 'POST',
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
       },
     );
 
@@ -39,4 +42,3 @@ export async function POST(
     return NextResponse.json({ message }, { status: 502 });
   }
 }
-

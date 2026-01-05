@@ -1,10 +1,16 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { EmailService } from '../../infrastructure/email/email.service';
+import { PaystackService } from '../../infrastructure/paystack/paystack.service';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+    private readonly paystack: PaystackService,
+  ) {}
 
   async create(payload: CreateProjectDto) {
     const user = await this.prisma.user.findUnique({
@@ -162,7 +168,10 @@ export class ProjectsService {
     return updated;
   }
 
-  async requestInspection(id: string) {
+  async requestInspection(
+    id: string,
+    payload?: { siteAddress?: string; contactPhone?: string },
+  ) {
     const project = await this.prisma.project.findUnique({
       where: { id },
       include: { onboarding: true, user: true },
@@ -172,10 +181,14 @@ export class ProjectsService {
       throw new NotFoundException('Project not found.');
     }
 
-    const address = project.onboarding?.siteAddress ?? '';
+    const explicitAddress = payload?.siteAddress?.trim();
+    const explicitPhone = payload?.contactPhone?.trim();
+
+    const address = explicitAddress || project.onboarding?.siteAddress || '';
     const lowered = address.toLowerCase();
 
     const isLagos = lowered.includes('lagos');
+    const isAbuja = lowered.includes('abuja');
 
     const westernStates = [
       'ogun',
@@ -188,10 +201,33 @@ export class ProjectsService {
     ];
 
     const isWesternNonLagos =
-      !isLagos && westernStates.some((state) => lowered.includes(state));
+      !isLagos &&
+      !isAbuja &&
+      westernStates.some((state) => lowered.includes(state));
 
     const fee =
-      isLagos ? 20000 : isWesternNonLagos ? 40000 : 100000;
+      isLagos || isAbuja ? 15000 : isWesternNonLagos ? 30000 : 100000;
+
+    // Ensure onboarding has the latest contact details.
+    if (explicitAddress || explicitPhone) {
+      if (project.onboarding) {
+        await this.prisma.onboardingSession.update({
+          where: { projectId: id },
+          data: {
+            siteAddress: explicitAddress || project.onboarding.siteAddress,
+            contactPhone: explicitPhone || project.onboarding.contactPhone,
+          },
+        });
+      } else {
+        await this.prisma.onboardingSession.create({
+          data: {
+            projectId: id,
+            siteAddress: explicitAddress ?? null,
+            contactPhone: explicitPhone ?? null,
+          },
+        });
+      }
+    }
 
     // Update project status so admin/ops can see this in their views.
     await this.prisma.project.update({
@@ -199,16 +235,81 @@ export class ProjectsService {
       data: { status: 'INSPECTION_REQUESTED' as any },
     });
 
+    // Notify admins via email.
+    const projectUrl = `${this.email.getFrontendBaseUrl()}/dashboard/projects/${encodeURIComponent(
+      project.id,
+    )}`;
+
+    await this.email.sendInspectionRequestedEmail({
+      projectName: project.name,
+      customerName: project.user.name,
+      customerEmail: project.user.email,
+      siteAddress: address || 'Not provided',
+      contactPhone: explicitPhone || project.onboarding?.contactPhone || '',
+      fee,
+      region: isLagos
+        ? 'LAGOS'
+        : isAbuja
+        ? 'ABUJA'
+        : isWesternNonLagos
+        ? 'WEST_NEAR'
+        : 'OTHER',
+      projectUrl,
+    });
+
+    // Prepare Paystack inspection fee payment.
+    let authorizationUrl: string | null = null;
+
+    try {
+      const reference = `INSPECTION-${project.id}-${Date.now()}`;
+
+      const callbackBase =
+        process.env.PAYSTACK_CALLBACK_BASE_URL ||
+        `${this.email.getFrontendBaseUrl()}/paystack/callback`;
+
+      const callbackUrl = `${callbackBase}?type=inspection&projectId=${encodeURIComponent(
+        project.id,
+      )}`;
+
+      const tx = await this.paystack.initializeTransaction({
+        email: project.user.email,
+        amountNaira: fee,
+        reference,
+        callbackUrl,
+        metadata: {
+          type: 'INSPECTION_FEE',
+          projectId: project.id,
+          region: isLagos
+            ? 'LAGOS'
+            : isAbuja
+            ? 'ABUJA'
+            : isWesternNonLagos
+            ? 'WEST_NEAR'
+            : 'OTHER',
+        },
+      });
+
+      authorizationUrl = tx.authorization_url;
+    } catch (error) {
+      // Do not fail the request if payment initialization fails; admins
+      // can still handle inspection manually.
+      // eslint-disable-next-line no-console
+      console.error('[ProjectsService] Failed to init inspection payment', error);
+    }
+
     return {
       projectId: id,
       inspectionFee: fee,
       currency: 'NGN',
       inferredRegion: isLagos
         ? 'LAGOS'
+        : isAbuja
+        ? 'ABUJA'
         : isWesternNonLagos
-        ? 'WESTERN_STATE'
+        ? 'WEST_NEAR'
         : 'OTHER',
       siteAddress: address || null,
+      authorizationUrl,
     };
   }
 

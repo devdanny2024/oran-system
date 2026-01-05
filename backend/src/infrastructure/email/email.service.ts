@@ -253,7 +253,7 @@ export class EmailService {
   }
 
   async sendQuoteCreatedEmail(params: {
-    to: string;
+      to: string;
     name?: string | null;
     projectName: string;
     quoteUrl: string;
@@ -278,6 +278,60 @@ export class EmailService {
     await this.sendEmail({
       to: params.to,
       subject: 'Your ORAN inspection quote is ready',
+      html,
+    });
+  }
+
+  async sendInspectionRequestedEmail(params: {
+    projectName: string;
+    customerName?: string | null;
+    customerEmail: string;
+    siteAddress: string;
+    contactPhone?: string | null;
+    fee: number;
+    region: 'LAGOS' | 'ABUJA' | 'WEST_NEAR' | 'OTHER';
+    projectUrl: string;
+  }) {
+    const adminTo =
+      this.config.get<string>('ADMIN_NOTIFICATIONS_EMAIL') ?? this.fromAddress;
+
+    const greetingName = 'team';
+
+    const regionLabel =
+      params.region === 'LAGOS'
+        ? 'Lagos'
+        : params.region === 'ABUJA'
+        ? 'Abuja'
+        : params.region === 'WEST_NEAR'
+        ? 'South-West near Lagos'
+        : 'Other location';
+
+    const feeFormatted = `₦${params.fee.toLocaleString('en-NG')}`;
+
+    const html = this.buildBaseTemplate({
+      title: 'New site inspection request',
+      intro: `Hi ${greetingName}, a customer has requested a site inspection.`,
+      bodyLines: [
+        `Project: <strong>${params.projectName}</strong>`,
+        `Customer: ${params.customerName || 'Unknown'} (${params.customerEmail})`,
+        `Region: ${regionLabel}`,
+        `Proposed site address: ${params.siteAddress}`,
+        params.contactPhone
+          ? `Representative phone: ${params.contactPhone}`
+          : 'Representative phone: not provided',
+        `Inspection fee for this region: <strong>${feeFormatted}</strong>`,
+      ],
+      action: {
+        label: 'Open project in ORAN dashboard',
+        url: params.projectUrl,
+      },
+      footer:
+        'Assign an available technician for inspection and confirm payment of the inspection fee before scheduling the visit.',
+    });
+
+    await this.sendEmail({
+      to: adminTo,
+      subject: 'New ORAN site inspection request',
       html,
     });
   }
