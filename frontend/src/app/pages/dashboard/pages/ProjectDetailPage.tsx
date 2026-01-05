@@ -687,8 +687,93 @@ export default function ProjectDetailPage() {
     return step;
   })();
 
+  const handleRequestInspection = async () => {
+    if (!project) return;
+    const onboarding = project.onboarding ?? undefined;
+    const address = onboarding?.siteAddress?.trim() ?? '';
+    const phone = onboarding?.contactPhone?.trim() ?? '';
+
+    if (!address || !phone) {
+      toast.error(
+        'Please provide both site address and a phone number for inspection.',
+      );
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/projects/${encodeURIComponent(project.id)}/request-inspection`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            siteAddress: address,
+            contactPhone: phone,
+          }),
+        },
+      );
+
+      const isJson =
+        res.headers
+          .get('content-type')
+          ?.toLowerCase()
+          .includes('application/json') ?? false;
+      const body = isJson ? await res.json() : await res.text();
+
+      if (!res.ok) {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ??
+              'Unable to request site inspection. Please try again.';
+        toast.error(message);
+        return;
+      }
+
+      const fee = Number((body as any)?.inspectionFee ?? 0);
+      const region = (body as any)?.inferredRegion ?? 'your location';
+      const authorizationUrl = (body as any)
+        ?.authorizationUrl as string | undefined;
+
+      toast.success(
+        `Inspection requested. Fee: ₦${fee.toLocaleString()} for ${region.toLowerCase()}.`,
+      );
+
+      if (authorizationUrl) {
+        window.location.href = authorizationUrl;
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to request site inspection. Please try again.';
+      toast.error(message);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <Card className="border-primary bg-primary/5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              You need a team member on your project
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+              Request a site inspection so ORAN can assign a technician, confirm
+              wiring and device needs and prepare an inspection-based quote for
+              you.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            className="self-start md:self-auto"
+            onClick={handleRequestInspection}
+          >
+            Request site inspection
+          </Button>
+        </div>
+      </Card>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -1484,72 +1569,7 @@ export default function ProjectDetailPage() {
               team, assign an available technician and redirect you to Paystack
               to pay the inspection fee.
             </p>
-            <Button
-              size="sm"
-              onClick={async () => {
-                if (!project) return;
-                const address = onboarding?.siteAddress?.trim() ?? '';
-                const phone = onboarding?.contactPhone?.trim() ?? '';
-
-                if (!address || !phone) {
-                  toast.error(
-                    'Please provide both site address and a phone number for inspection.',
-                  );
-                  return;
-                }
-
-                try {
-                  const res = await fetch(
-                    `/api/projects/${encodeURIComponent(project.id)}/request-inspection`,
-                    {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        siteAddress: address,
-                        contactPhone: phone,
-                      }),
-                    },
-                  );
-
-                  const isJson =
-                    res.headers
-                      .get('content-type')
-                      ?.toLowerCase()
-                      .includes('application/json') ?? false;
-                  const body = isJson ? await res.json() : await res.text();
-
-                  if (!res.ok) {
-                    const message =
-                      typeof body === 'string'
-                        ? body
-                        : body?.message ??
-                          'Unable to request site inspection. Please try again.';
-                    toast.error(message);
-                    return;
-                  }
-
-                  const fee = Number((body as any)?.inspectionFee ?? 0);
-                  const region =
-                    (body as any)?.inferredRegion ?? 'your location';
-                  const authorizationUrl = (body as any)
-                    ?.authorizationUrl as string | undefined;
-
-                  toast.success(
-                    `Inspection requested. Fee: ₦${fee.toLocaleString()} for ${region.toLowerCase()}.`,
-                  );
-
-                  if (authorizationUrl) {
-                    window.location.href = authorizationUrl;
-                  }
-                } catch (error) {
-                  const message =
-                    error instanceof Error
-                      ? error.message
-                      : 'Unable to request site inspection. Please try again.';
-                  toast.error(message);
-                }
-              }}
-            >
+            <Button size="sm" onClick={handleRequestInspection}>
               Request site inspection
             </Button>
           </div>
