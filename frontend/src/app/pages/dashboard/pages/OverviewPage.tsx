@@ -16,8 +16,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../components/ui/dialog';
-import { Home, DollarSign, FolderKanban, ArrowRight, CheckCircle, Wrench, Camera } from 'lucide-react';
+import { Home, DollarSign, FolderKanban, ArrowRight, CheckCircle, Wrench } from 'lucide-react';
 import Link from 'next/link';
+
+type ProjectStatus =
+  | 'ONBOARDING'
+  | 'INSPECTION_REQUESTED'
+  | 'INSPECTION_SCHEDULED'
+  | 'INSPECTION_COMPLETED'
+  | 'QUOTES_GENERATED'
+  | 'QUOTE_SELECTED'
+  | 'DOCUMENTS_PENDING'
+  | 'DOCUMENTS_SIGNED'
+  | 'PAYMENT_PLAN_SELECTED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED';
+
+type ProjectSummary = {
+  id: string;
+  userId: string;
+  name: string;
+  status: ProjectStatus | string;
+  createdAt: string;
+};
 
 export default function OverviewPage() {
   const router = useRouter();
@@ -29,70 +50,8 @@ export default function OverviewPage() {
   const [inspectionAddress, setInspectionAddress] = useState('');
   const [inspectionPhone, setInspectionPhone] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
-
-  const activeProject = {
-    name: 'Living Room Smart Home',
-    progress: 80,
-    status: 'In Progress',
-    nextMilestone: 'Final Testing',
-    dueDate: '5 days'
-  };
-
-  const stats = [
-    { name: 'Site Visits', value: '7', icon: Home, change: '+2 this month' },
-    { name: 'Total Spent', value: '₦2.8M', icon: DollarSign, change: 'Of ₦3.7M total' },
-    { name: 'Active Projects', value: '2', icon: FolderKanban, change: '1 completed' }
-  ];
-
-  const recentActivity = [
-    { 
-      id: 1, 
-      icon: CheckCircle, 
-      text: 'Lighting installation completed', 
-      time: '2 hours ago',
-      iconColor: 'text-accent'
-    },
-    { 
-      id: 2, 
-      icon: Wrench, 
-      text: 'Technician John scheduled for tomorrow 10 AM', 
-      time: '5 hours ago',
-      iconColor: 'text-primary'
-    },
-    { 
-      id: 3, 
-      icon: DollarSign, 
-      text: 'Milestone 2 payment received', 
-      time: 'Yesterday',
-      iconColor: 'text-green-500'
-    },
-    { 
-      id: 4, 
-      icon: Camera, 
-      text: 'Progress photos uploaded', 
-      time: '2 days ago',
-      iconColor: 'text-blue-500'
-    }
-  ];
-
-  const projects = [
-    {
-      id: 1,
-      name: 'Living Room Smart Home',
-      status: 'In Progress',
-      startDate: 'Mar 15, 2024',
-      progress: 80,
-      badge: 'in-progress'
-    },
-    {
-      id: 2,
-      name: 'Office Automation',
-      status: 'Completed',
-      startDate: 'Jan 10, 2024',
-      progress: 100,
-      badge: 'completed'
-    }
-  ];
+  const [userProjects, setUserProjects] = useState<ProjectSummary[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -115,6 +74,51 @@ export default function OverviewPage() {
       if (displayName) {
         setUserDisplayName(displayName);
       }
+
+      const loadProjects = async () => {
+        try {
+          setProjectsLoading(true);
+          const res = await fetch('/api/projects');
+          const isJson =
+            res.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const body = isJson ? await res.json() : await res.text();
+
+          if (!res.ok) {
+            const message =
+              typeof body === 'string'
+                ? body
+                : body?.message ?? 'Unable to load your projects.';
+            toast.error(message);
+            return;
+          }
+
+          const items = ((body as any)?.items ?? []) as ProjectSummary[];
+          const owned = parsed?.id
+            ? items.filter((p) => p.userId === parsed.id)
+            : items;
+
+          owned.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() -
+              new Date(a.createdAt).getTime(),
+          );
+
+          setUserProjects(owned);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Unable to load your projects. Please try again.';
+          toast.error(message);
+        } finally {
+          setProjectsLoading(false);
+        }
+      };
+
+      void loadProjects();
     } catch {
       // ignore parse errors
     }
@@ -227,13 +231,14 @@ export default function OverviewPage() {
 
       const fee = Number((body as any)?.inspectionFee ?? 0);
       const region = (body as any)?.inferredRegion ?? 'your location';
-      const authorizationUrl = (body as any)?.authorizationUrl as string | undefined;
+      const authorizationUrl = (body as any)
+        ?.authorizationUrl as string | undefined;
 
       toast.success(
-        `Inspection requested. Fee: ₦${fee.toLocaleString()} for ${region.toLowerCase()}.`,
+        `Inspection requested. Fee: ₦${fee.toLocaleString()} for ${String(
+          region,
+        ).toLowerCase()}.`,
       );
-
-      setInspectionOpen(false);
 
       if (authorizationUrl) {
         window.location.href = authorizationUrl;
@@ -249,12 +254,26 @@ export default function OverviewPage() {
     }
   };
 
+  const activeProject = userProjects[0] ?? null;
+  const activeCount = userProjects.filter((p) => p.status !== 'COMPLETED').length;
+  const completedCount = userProjects.filter((p) => p.status === 'COMPLETED').length;
+  const inspectionCount = userProjects.filter((p) =>
+    ['INSPECTION_REQUESTED', 'INSPECTION_SCHEDULED', 'INSPECTION_COMPLETED'].includes(
+      p.status as ProjectStatus,
+    ),
+  ).length;
+
+  const formatStatus = (status: string) =>
+    status.toLowerCase().replace(/_/g, ' ');
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Dashboard Overview</h1>
-        <p className="text-muted-foreground mt-1">Welcome back! Here's what's happening with your projects.</p>
+        <p className="text-muted-foreground mt-1">
+          Welcome back! Here&apos;s what&apos;s happening with your projects.
+        </p>
       </div>
 
       {/* Team member / inspection CTA */}
@@ -266,8 +285,8 @@ export default function OverviewPage() {
                 You need a team member on your project
               </h2>
               <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                Request a site inspection so ORAN can assign a technician, confirm wiring and device needs and prepare an
-                inspection-based quote for you.
+                Request a site inspection so ORAN can assign a technician, confirm wiring and device
+                needs and prepare an inspection-based quote for you.
               </p>
             </div>
             <Button
@@ -294,17 +313,20 @@ export default function OverviewPage() {
           <div className="space-y-3 text-xs">
             <div className="grid gap-2 md:grid-cols-2">
               <p className="text-muted-foreground">
-                Lagos sites: <span className="font-semibold text-foreground">₦15,000</span>
+                Lagos sites:{' '}
+                <span className="font-semibold text-foreground">₦15,000</span>
               </p>
               <p className="text-muted-foreground">
-                South-West near Lagos (e.g. Ogun, Osun, Oyo, Ibadan, Ekiti, Ondo, Kwara):
-                <span className="font-semibold text-foreground"> ₦30,000</span>
+                South-West near Lagos (e.g. Ogun, Osun, Oyo, Ibadan, Ekiti, Ondo, Kwara):{' '}
+                <span className="font-semibold text-foreground">₦30,000</span>
               </p>
               <p className="text-muted-foreground">
-                Abuja sites: <span className="font-semibold text-foreground">₦15,000</span>
+                Abuja sites:{' '}
+                <span className="font-semibold text-foreground">₦15,000</span>
               </p>
               <p className="text-muted-foreground">
-                Other locations: <span className="font-semibold text-foreground">₦100,000</span>
+                Other locations:{' '}
+                <span className="font-semibold text-foreground">₦100,000</span>
               </p>
             </div>
             <div className="grid gap-2 md:grid-cols-2">
@@ -354,35 +376,94 @@ export default function OverviewPage() {
         <CardContent className="p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-2">
-                <h3 className="text-xl font-semibold">{activeProject.name}</h3>
-                <Badge variant="secondary">{activeProject.status}</Badge>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">Installation Progress</span>
-                    <span className="text-sm font-medium">{activeProject.progress}%</span>
+              {activeProject ? (
+                <>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <h3 className="text-xl font-semibold">{activeProject.name}</h3>
+                    <Badge variant="secondary">
+                      {formatStatus(activeProject.status)}
+                    </Badge>
                   </div>
-                  <Progress value={activeProject.progress} className="h-2" />
-                </div>
-                <div className="flex items-center space-x-6 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Next Milestone:</span>
-                    <span className="font-medium ml-2">{activeProject.nextMilestone}</span>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-muted-foreground">
+                          Installation progress
+                        </span>
+                        <span className="text-sm font-medium">
+                          {/* simple stage-based progress estimate */}
+                          {activeProject.status === 'COMPLETED'
+                            ? '100%'
+                            : activeProject.status === 'IN_PROGRESS'
+                              ? '75%'
+                              : activeProject.status === 'DOCUMENTS_SIGNED' ||
+                                  activeProject.status === 'PAYMENT_PLAN_SELECTED'
+                                ? '60%'
+                                : activeProject.status === 'QUOTE_SELECTED' ||
+                                    activeProject.status === 'QUOTES_GENERATED'
+                                  ? '40%'
+                                  : activeProject.status.startsWith('INSPECTION')
+                                    ? '30%'
+                                    : '15%'}
+                        </span>
+                      </div>
+                      <Progress
+                        value={
+                          activeProject.status === 'COMPLETED'
+                            ? 100
+                            : activeProject.status === 'IN_PROGRESS'
+                              ? 75
+                              : activeProject.status === 'DOCUMENTS_SIGNED' ||
+                                  activeProject.status === 'PAYMENT_PLAN_SELECTED'
+                                ? 60
+                                : activeProject.status === 'QUOTE_SELECTED' ||
+                                    activeProject.status === 'QUOTES_GENERATED'
+                                  ? 40
+                                  : activeProject.status.startsWith('INSPECTION')
+                                    ? 30
+                                    : 15
+                        }
+                        className="h-2"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-6 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Current stage:</span>
+                        <span className="font-medium ml-2">
+                          {formatStatus(activeProject.status)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Project ID:</span>
+                        <span className="font-mono text-[10px] ml-2">
+                          {activeProject.id.slice(0, 8)}…
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Due in:</span>
-                    <span className="font-medium ml-2">{activeProject.dueDate}</span>
+                </>
+              ) : (
+                <>
+                  <div className="mb-2">
+                    <p className="text-xs uppercase text-primary font-semibold">
+                      Get started
+                    </p>
+                    <h3 className="text-xl font-semibold">Start your first ORAN project</h3>
                   </div>
-                </div>
-              </div>
+                  <p className="text-xs text-muted-foreground mb-3 max-w-md">
+                    Once you complete onboarding, your project and documents will appear here so you
+                    can follow the full journey from inspection to operations.
+                  </p>
+                </>
+              )}
             </div>
-            <Link href="/dashboard/projects">
-              <Button>
-                View Details <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+            <div className="flex flex-col items-end gap-3">
+              <Link href="/dashboard/projects">
+                <Button>
+                  View Details <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -391,25 +472,58 @@ export default function OverviewPage() {
       <div>
         <h2 className="text-xl font-semibold mb-4">Quick Stats</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.name}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{stat.name}</p>
-                      <p className="text-3xl font-bold mt-2">{stat.value}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{stat.change}</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Active projects</p>
+                  <p className="text-3xl font-bold mt-2">{activeCount}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {projectsLoading
+                      ? 'Loading your projects…'
+                      : activeCount === 0
+                        ? 'No active projects yet.'
+                        : 'Projects currently in progress.'}
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FolderKanban className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Completed projects</p>
+                  <p className="text-3xl font-bold mt-2">{completedCount}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Projects that have reached handover.
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Site inspections</p>
+                  <p className="text-3xl font-bold mt-2">{inspectionCount}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Projects that have an inspection in their journey.
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Home className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -421,24 +535,64 @@ export default function OverviewPage() {
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => {
-                const Icon = activity.icon;
-                return (
-                  <div key={activity.id}>
-                    <div className="flex items-start space-x-3">
-                      <div className={`mt-0.5 ${activity.iconColor}`}>
-                        <Icon className="h-5 w-5" />
+            <div className="space-y-4 text-xs">
+              {projectsLoading ? (
+                <p className="text-muted-foreground">Loading recent activity…</p>
+              ) : userProjects.length === 0 ? (
+                <p className="text-muted-foreground">
+                  Once you start a project, we&apos;ll show a history of key events here
+                  (documents, inspections and payments).
+                </p>
+              ) : (
+                userProjects.slice(0, 4).map((project, index) => {
+                  const status = project.status as ProjectStatus;
+                  const Icon =
+                    status === 'COMPLETED'
+                      ? CheckCircle
+                      : status.startsWith('INSPECTION')
+                        ? Wrench
+                        : DollarSign;
+                  const iconColor =
+                    status === 'COMPLETED'
+                      ? 'text-green-500'
+                      : status.startsWith('INSPECTION')
+                        ? 'text-primary'
+                        : 'text-accent';
+
+                  const description =
+                    status === 'COMPLETED'
+                      ? 'Project completed and handed over.'
+                      : status.startsWith('INSPECTION')
+                        ? 'Site inspection in progress for this project.'
+                        : 'Project is moving through quotes, documents or payments.';
+
+                  return (
+                    <div key={project.id}>
+                      <div className="flex items-start space-x-3">
+                        <div className={`mt-0.5 ${iconColor}`}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm">{project.name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {description}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Created{' '}
+                            {new Date(project.createdAt).toLocaleDateString(
+                              'en-NG',
+                              { year: 'numeric', month: 'short', day: 'numeric' },
+                            )}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm">{activity.text}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                      </div>
+                      {index < Math.min(userProjects.length, 4) - 1 && (
+                        <Separator className="my-4" />
+                      )}
                     </div>
-                    {index < recentActivity.length - 1 && <Separator className="my-4" />}
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </CardContent>
         </Card>
@@ -449,45 +603,63 @@ export default function OverviewPage() {
             <CardTitle>All Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {projects.map((project, index) => (
-                <div key={project.id}>
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium">{project.name}</h4>
-                          <Badge 
-                            variant={project.badge === 'completed' ? 'default' : 'secondary'}
-                            className={project.badge === 'completed' ? 'bg-accent' : ''}
-                          >
-                            {project.status}
-                          </Badge>
+            <div className="space-y-4 text-sm">
+              {projectsLoading ? (
+                <p className="text-xs text-muted-foreground">
+                  Loading your projects…
+                </p>
+              ) : userProjects.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  You don&apos;t have any projects yet. Start one from the top bar to
+                  see it here.
+                </p>
+              ) : (
+                userProjects.map((project, index) => (
+                  <div key={project.id}>
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-medium">{project.name}</h4>
+                            <Badge
+                              variant={
+                                project.status === 'COMPLETED'
+                                  ? 'default'
+                                  : 'secondary'
+                              }
+                              className={
+                                project.status === 'COMPLETED' ? 'bg-accent' : ''
+                              }
+                            >
+                              {formatStatus(project.status)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Started{' '}
+                            {new Date(project.createdAt).toLocaleDateString(
+                              'en-NG',
+                              { year: 'numeric', month: 'short', day: 'numeric' },
+                            )}
+                          </p>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Started: {project.startDate}
-                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Link
+                          href={`/dashboard/projects/${project.id}`}
+                          className="flex-1"
+                        >
+                          <Button variant="outline" size="sm" className="w-full">
+                            View Details
+                          </Button>
+                        </Link>
                       </div>
                     </div>
-                    {project.progress < 100 && (
-                      <Progress value={project.progress} className="h-1.5" />
+                    {index < userProjects.length - 1 && (
+                      <Separator className="my-4" />
                     )}
-                    <div className="flex space-x-2">
-                      <Link href="/dashboard/projects" className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full">
-                          View Details
-                        </Button>
-                      </Link>
-                      {project.progress < 100 && (
-                        <Button variant="outline" size="sm">
-                          Operations
-                        </Button>
-                      )}
-                    </div>
                   </div>
-                  {index < projects.length - 1 && <Separator className="my-4" />}
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -495,3 +667,4 @@ export default function OverviewPage() {
     </div>
   );
 }
+
