@@ -79,6 +79,26 @@ export default function OverviewPage() {
         <p className="text-muted-foreground mt-1">Welcome back! Here's what's happening with your projects.</p>
       </div>
 
+      {/* Team member / inspection CTA */}
+      <Card className="border-primary bg-primary/5">
+        <CardContent className="p-4 md:p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                You need a team member on your project
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                Request a site inspection so ORAN can assign a technician, confirm wiring and device needs and prepare an
+                inspection-based quote for you.
+              </p>
+            </div>
+            <Link href="/dashboard/projects" className="self-start md:self-auto">
+              <Button size="sm">Request site inspection</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Active Project Banner */}
       <Card className="border-primary bg-primary/5">
         <CardContent className="p-6">
