@@ -436,7 +436,33 @@ export default function ProjectDetailPage() {
           | 'EIGHTY_TEN_TEN'
           | '';
 
-      if (!documentsAccepted) {
+      const isInspectionStatus =
+        project.status === 'INSPECTION_REQUESTED' ||
+        project.status === 'INSPECTION_SCHEDULED';
+
+      const isDocumentsStageStatus =
+        project.status === 'DOCUMENTS_PENDING' ||
+        project.status === 'DOCUMENTS_SIGNED' ||
+        project.status === 'PAYMENT_PLAN_SELECTED' ||
+        project.status === 'IN_PROGRESS' ||
+        project.status === 'COMPLETED';
+
+      if (isInspectionStatus) {
+        step = {
+          label:
+            'Your inspection request has been received. We will confirm a date and time shortly.',
+          cta: 'View project details',
+          action: () => {
+            const el =
+              typeof document !== 'undefined'
+                ? document.getElementById('project-inspection-section')
+                : null;
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          },
+        };
+      } else if (isDocumentsStageStatus && !documentsAccepted) {
         step = {
           label:
             'Review and accept your installation, scope of work and payment terms documents.',
@@ -608,6 +634,17 @@ export default function ProjectDetailPage() {
       }
     };
 
+    const isInspectionStatus =
+      project.status === 'INSPECTION_REQUESTED' ||
+      project.status === 'INSPECTION_SCHEDULED';
+
+    const isDocumentsStageStatus =
+      project.status === 'DOCUMENTS_PENDING' ||
+      project.status === 'DOCUMENTS_SIGNED' ||
+      project.status === 'PAYMENT_PLAN_SELECTED' ||
+      project.status === 'IN_PROGRESS' ||
+      project.status === 'COMPLETED';
+
     if (!onboarding || project.status === 'ONBOARDING') {
       step = {
         label:
@@ -615,6 +652,21 @@ export default function ProjectDetailPage() {
         cta: 'Continue onboarding',
         action: () => {
           router.push('/onboarding');
+        },
+      };
+    } else if (isInspectionStatus) {
+      step = {
+        label:
+          'Your inspection request has been received. We will confirm a date and time shortly.',
+        cta: 'View project details',
+        action: () => {
+          const el =
+            typeof document !== 'undefined'
+              ? document.getElementById('project-inspection-section')
+              : null;
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         },
       };
     } else if (!selectedQuote && project.status === 'QUOTES_GENERATED') {
@@ -626,7 +678,7 @@ export default function ProjectDetailPage() {
           action: scrollToQuotes,
         };
       }
-    } else if (!allDocumentsAccepted) {
+    } else if (isDocumentsStageStatus && !allDocumentsAccepted) {
       step = {
         label:
           'Review and accept your installation, scope of work and payment terms documents.',
@@ -1530,8 +1582,8 @@ export default function ProjectDetailPage() {
         )}
       </Card>
 
-      <Card className="p-4 space-y-3">
-        <h2 className="text-sm font-semibold">Site inspection</h2>
+        <Card id="project-inspection-section" className="p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Site inspection</h2>
         <p className="text-xs text-muted-foreground">
           Request a technician to visit your site, confirm wiring and device
           needs and prepare an inspection-based quote. An inspection fee applies

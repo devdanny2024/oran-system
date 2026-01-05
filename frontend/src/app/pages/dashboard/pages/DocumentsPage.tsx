@@ -190,8 +190,9 @@ export default function DocumentsPage() {
           Project documents
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Review and accept your installation, scope of work and payment terms
-          documents for your most recent project.
+          {project && agreements.length > 0
+            ? 'Review and accept your installation, scope of work and payment terms documents for your most recent project.'
+            : 'Once your quote is confirmed and documents are prepared, you will be able to review and accept your installation, scope of work and payment terms documents here.'}
         </p>
       </div>
 
@@ -281,4 +282,3 @@ export default function DocumentsPage() {
     </div>
   );
 }
-
