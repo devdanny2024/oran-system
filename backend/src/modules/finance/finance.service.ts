@@ -26,7 +26,16 @@ export class FinanceService {
       return service.overview();
     });
 
-    return revenue;
+    // Include a lightweight view of recent invoices for billing UI.
+    const invoices = await (this.prisma as any).billingInvoice.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    return {
+      revenue,
+      invoices,
+    };
   }
 
   async listBeneficiaries(userId: string) {
