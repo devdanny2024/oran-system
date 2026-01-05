@@ -62,29 +62,37 @@ export class FinanceService {
   }) {
     await this.assertFinanceAccess(params.userId);
 
-    // Resolve account name via Paystack if not provided explicitly.
-    let accountName = params.accountName?.trim();
-    if (!accountName) {
-      const resolved = await this.paystack.resolveAccount({
-        accountNumber: params.accountNumber,
-        bankCode: params.bankCode,
+    try {
+      // Resolve account name via Paystack if not provided explicitly.
+      let accountName = params.accountName?.trim();
+      if (!accountName) {
+        const resolved = await this.paystack.resolveAccount({
+          accountNumber: params.accountNumber,
+          bankCode: params.bankCode,
+        });
+        accountName = resolved.account_name;
+      }
+
+      const labelName = (params.name ?? accountName).trim();
+
+      const beneficiary = await this.prisma.financeBeneficiary.create({
+        data: {
+          name: labelName,
+          bankName: params.bankName,
+          bankCode: params.bankCode,
+          accountNumber: params.accountNumber,
+          accountName,
+        },
       });
-      accountName = resolved.account_name;
+
+      return beneficiary;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to create beneficiary. Please check the details and try again.';
+      throw new BadRequestException(message);
     }
-
-    const labelName = (params.name ?? accountName).trim();
-
-    const beneficiary = await this.prisma.financeBeneficiary.create({
-      data: {
-        name: labelName,
-        bankName: params.bankName,
-        bankCode: params.bankCode,
-        accountNumber: params.accountNumber,
-        accountName,
-      },
-    });
-
-    return beneficiary;
   }
 
   async listDisbursements(userId: string) {
