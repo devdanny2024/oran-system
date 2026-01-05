@@ -7,10 +7,38 @@ export class PricingSettingsService {
 
   private async ensureSettings() {
     // Use raw SQL so we don't depend on a generated Prisma delegate
-    // for PricingSettings (the client on the server does not expose it yet).
-    const existing = (await (this.prisma as any).$queryRawUnsafe(
-      'SELECT * FROM "PricingSettings" LIMIT 1',
-    )) as any[];
+    // for PricingSettings. If the table does not exist yet, create it
+    // on first access.
+    let existing: any[] = [];
+
+    try {
+      existing = (await (this.prisma as any).$queryRawUnsafe(
+        'SELECT * FROM "PricingSettings" LIMIT 1',
+      )) as any[];
+    } catch (error: any) {
+      const code = error?.meta?.code ?? error?.code;
+      if (code === '42P01') {
+        // relation does not exist -> create table then continue
+        await (this.prisma as any).$executeRawUnsafe(
+          'CREATE TABLE "PricingSettings" (' +
+            '"id" TEXT PRIMARY KEY,' +
+            '"logisticsPerTripLagos" NUMERIC NOT NULL DEFAULT 50000,' +
+            '"logisticsPerTripWestNear" NUMERIC NOT NULL DEFAULT 60000,' +
+            '"logisticsPerTripOther" NUMERIC NOT NULL DEFAULT 100000,' +
+            '"miscRate" NUMERIC NOT NULL DEFAULT 0.05,' +
+            '"taxRate" NUMERIC NOT NULL DEFAULT 0.075,' +
+            '"createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),' +
+            '"updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()' +
+          ')',
+        );
+
+        existing = (await (this.prisma as any).$queryRawUnsafe(
+          'SELECT * FROM "PricingSettings" LIMIT 1',
+        )) as any[];
+      } else {
+        throw error;
+      }
+    }
 
     if (existing && existing.length > 0) {
       return existing[0];
