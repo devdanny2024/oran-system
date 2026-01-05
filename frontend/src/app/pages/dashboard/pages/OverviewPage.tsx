@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
@@ -22,6 +22,8 @@ import Link from 'next/link';
 export default function OverviewPage() {
   const router = useRouter();
   const [requestingInspection, setRequestingInspection] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userDisplayName, setUserDisplayName] = useState<string>('');
   const [inspectionProjectId, setInspectionProjectId] = useState<string | null>(null);
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const [inspectionAddress, setInspectionAddress] = useState('');
@@ -92,10 +94,56 @@ export default function OverviewPage() {
     }
   ];
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const stored = window.localStorage.getItem('oran_user');
+    if (!stored) return;
+
+    try {
+      const parsed = JSON.parse(stored) as {
+        id?: string;
+        name?: string | null;
+        email?: string;
+      };
+
+      if (parsed?.id) {
+        setUserId(parsed.id);
+      }
+
+      const displayName = (parsed.name || parsed.email || '').trim();
+      if (displayName) {
+        setUserDisplayName(displayName);
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
+
   const handleOverviewInspection = async () => {
+    if (!userId) {
+      toast.error('Please log in again to request an inspection.');
+      router.push('/login');
+      return;
+    }
+
     try {
       setRequestingInspection(true);
-      const res = await fetch('/api/projects');
+
+      const displayName = userDisplayName?.trim();
+      const projectName = displayName
+        ? `${displayName}'s ORAN Smart Home Project`
+        : 'My ORAN Smart Home Project';
+
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: projectName,
+          userId,
+        }),
+      });
+
       const isJson =
         res.headers.get('content-type')?.toLowerCase().includes('application/json') ?? false;
       const body = isJson ? await res.json() : await res.text();
@@ -104,19 +152,23 @@ export default function OverviewPage() {
         const message =
           typeof body === 'string'
             ? body
-            : body?.message ?? 'Unable to load your projects for inspection.';
+            : body?.message ?? 'Unable to create a project for inspection.';
         toast.error(message);
         return;
       }
 
-      const items = (((body as any)?.items ?? []) as Array<{ id: string }>);
-      if (!items.length) {
-        toast.error('You need a project before requesting an inspection. Starting onboarding...');
-        router.push('/onboarding');
+      const created = body as any;
+      const projectId = created?.id as string | undefined;
+
+      if (!projectId) {
+        toast.error('Unable to create a project for inspection.');
         return;
       }
 
-      const projectId = items[0].id;
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem('oran_last_project_id', projectId);
+      }
+
       setInspectionProjectId(projectId);
       setInspectionAddress('');
       setInspectionPhone('');
