@@ -6,10 +6,10 @@ export class PricingSettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async ensureSettings() {
-    const existing = await this.prisma.pricingSettings.findFirst();
+    const existing = await (this.prisma as any).pricingSettings.findFirst();
     if (existing) return existing;
 
-    return this.prisma.pricingSettings.create({
+    return (this.prisma as any).pricingSettings.create({
       data: {
         // Defaults match the initial hard-coded values
         logisticsPerTripLagos: 50000,
@@ -81,7 +81,7 @@ export class PricingSettingsService {
       data.taxRate = toRate(payload.taxRatePercent, 'taxRatePercent');
     }
 
-    const updated = await this.prisma.pricingSettings.update({
+    const updated = await (this.prisma as any).pricingSettings.update({
       where: { id: settings.id },
       data,
     });
@@ -89,4 +89,3 @@ export class PricingSettingsService {
     return updated;
   }
 }
-
