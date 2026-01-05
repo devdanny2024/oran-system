@@ -1,3 +1,8 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Progress } from '../../../components/ui/progress';
 import { Button } from '../../../components/ui/button';
@@ -7,6 +12,9 @@ import { Home, DollarSign, FolderKanban, ArrowRight, CheckCircle, Wrench, Camera
 import Link from 'next/link';
 
 export default function OverviewPage() {
+  const router = useRouter();
+  const [requestingInspection, setRequestingInspection] = useState(false);
+
   const activeProject = {
     name: 'Living Room Smart Home',
     progress: 80,
@@ -71,6 +79,43 @@ export default function OverviewPage() {
     }
   ];
 
+  const handleOverviewInspection = async () => {
+    try {
+      setRequestingInspection(true);
+      const res = await fetch('/api/projects');
+      const isJson =
+        res.headers.get('content-type')?.toLowerCase().includes('application/json') ?? false;
+      const body = isJson ? await res.json() : await res.text();
+
+      if (!res.ok) {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ?? 'Unable to load your projects for inspection.';
+        toast.error(message);
+        return;
+      }
+
+      const items = (((body as any)?.items ?? []) as Array<{ id: string }>);
+      if (!items.length) {
+        toast.error('You need a project before requesting an inspection. Starting onboarding...');
+        router.push('/onboarding');
+        return;
+      }
+
+      const projectId = items[0].id;
+      router.push(`/dashboard/projects/${encodeURIComponent(projectId)}`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to start inspection request. Please try again.';
+      toast.error(message);
+    } finally {
+      setRequestingInspection(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -92,9 +137,14 @@ export default function OverviewPage() {
                 inspection-based quote for you.
               </p>
             </div>
-            <Link href="/dashboard/projects" className="self-start md:self-auto">
-              <Button size="sm">Request site inspection</Button>
-            </Link>
+            <Button
+              size="sm"
+              className="self-start md:self-auto"
+              disabled={requestingInspection}
+              onClick={handleOverviewInspection}
+            >
+              {requestingInspection ? 'Loading...' : 'Request site inspection'}
+            </Button>
           </div>
         </CardContent>
       </Card>
