@@ -212,18 +212,6 @@ export default function Dashboard({
                   Inspection request received
                 </AlertTitle>
                 <AlertDescription className="text-emerald-800">
-                  Your inspection payment has been confirmed. A technician will
-                  be assigned to your project and you&apos;ll receive a confirmation
-                  email with the date and time for the visit.
-                </AlertDescription>
-              </Alert>
-            )}
-            {searchParams.get('inspection') === 'success' && (
-              <Alert className="bg-emerald-50 border-emerald-300">
-                <AlertTitle className="text-emerald-900">
-                  Inspection request received
-                </AlertTitle>
-                <AlertDescription className="text-emerald-800">
                   Your inspection payment has been confirmed. A technician will be assigned
                   to your project and you&apos;ll receive a confirmation email with the date
                   and time for the visit.
