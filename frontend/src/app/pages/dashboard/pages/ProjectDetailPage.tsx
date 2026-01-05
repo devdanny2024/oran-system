@@ -26,6 +26,8 @@ type Onboarding = {
   needsInspection?: boolean | null;
   selectedFeatures?: unknown;
   stairSteps?: number | null;
+  siteAddress?: string | null;
+  contactPhone?: string | null;
 };
 
 type Project = {
