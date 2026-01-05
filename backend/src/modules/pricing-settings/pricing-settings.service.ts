@@ -6,19 +6,25 @@ export class PricingSettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async ensureSettings() {
-    const existing = await (this.prisma as any).pricingSettings.findFirst();
-    if (existing) return existing;
+    // Use raw SQL so we don't depend on a generated Prisma delegate
+    // for PricingSettings (the client on the server does not expose it yet).
+    const existing = (await (this.prisma as any).$queryRawUnsafe(
+      'SELECT * FROM "PricingSettings" LIMIT 1',
+    )) as any[];
 
-    return (this.prisma as any).pricingSettings.create({
-      data: {
-        // Defaults match the initial hard-coded values
-        logisticsPerTripLagos: 50000,
-        logisticsPerTripWestNear: 60000,
-        logisticsPerTripOther: 100000,
-        miscRate: 0.05,
-        taxRate: 0.075,
-      },
-    });
+    if (existing && existing.length > 0) {
+      return existing[0];
+    }
+
+    await (this.prisma as any).$executeRawUnsafe(
+      'INSERT INTO "PricingSettings" ("id","logisticsPerTripLagos","logisticsPerTripWestNear","logisticsPerTripOther","miscRate","taxRate","createdAt","updatedAt") VALUES (gen_random_uuid(), 50000, 60000, 100000, 0.05, 0.075, NOW(), NOW())',
+    );
+
+    const created = (await (this.prisma as any).$queryRawUnsafe(
+      'SELECT * FROM "PricingSettings" LIMIT 1',
+    )) as any[];
+
+    return created[0];
   }
 
   async get() {
@@ -81,11 +87,46 @@ export class PricingSettingsService {
       data.taxRate = toRate(payload.taxRatePercent, 'taxRatePercent');
     }
 
-    const updated = await (this.prisma as any).pricingSettings.update({
-      where: { id: settings.id },
-      data,
-    });
+    // Apply updates via raw SQL as well.
+    const fields: string[] = [];
+    const values: any[] = [];
 
-    return updated;
+    if (data.logisticsPerTripLagos !== undefined) {
+      fields.push('"logisticsPerTripLagos" = $' + (values.length + 1));
+      values.push(data.logisticsPerTripLagos);
+    }
+    if (data.logisticsPerTripWestNear !== undefined) {
+      fields.push('"logisticsPerTripWestNear" = $' + (values.length + 1));
+      values.push(data.logisticsPerTripWestNear);
+    }
+    if (data.logisticsPerTripOther !== undefined) {
+      fields.push('"logisticsPerTripOther" = $' + (values.length + 1));
+      values.push(data.logisticsPerTripOther);
+    }
+    if (data.miscRate !== undefined) {
+      fields.push('"miscRate" = $' + (values.length + 1));
+      values.push(data.miscRate);
+    }
+    if (data.taxRate !== undefined) {
+      fields.push('"taxRate" = $' + (values.length + 1));
+      values.push(data.taxRate);
+    }
+
+    if (fields.length > 0) {
+      // Always bump updatedAt
+      fields.push('"updatedAt" = NOW()');
+
+      const setClause = fields.join(', ');
+      await (this.prisma as any).$executeRawUnsafe(
+        `UPDATE "PricingSettings" SET ${setClause} WHERE "id" = '${settings.id}'`,
+        ...values,
+      );
+    }
+
+    const updated = (await (this.prisma as any).$queryRawUnsafe(
+      'SELECT * FROM "PricingSettings" LIMIT 1',
+    )) as any[];
+
+    return updated[0];
   }
 }
