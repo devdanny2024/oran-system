@@ -56,6 +56,16 @@ export default function AdminProductsPage() {
   const [newFeeName, setNewFeeName] = useState('');
   const [newFeeType, setNewFeeType] = useState<ServiceFee['type']>('OTHER');
   const [newFeeTechnicianAmount, setNewFeeTechnicianAmount] = useState('0');
+  const [pricingSettings, setPricingSettings] = useState<{
+    logisticsPerTripLagos: number;
+    logisticsPerTripWestNear: number;
+    logisticsPerTripOther: number;
+    miscRatePercent: number;
+    taxRatePercent: number;
+  } | null>(null);
+  const [loadingPricing, setLoadingPricing] = useState(false);
+  const [savingPricing, setSavingPricing] = useState(false);
+
   const [newFeeClientAmount, setNewFeeClientAmount] = useState('0');
   const [creatingFee, setCreatingFee] = useState(false);
 
@@ -154,8 +164,41 @@ export default function AdminProductsPage() {
       }
     };
 
+    const loadPricingSettings = async () => {
+      try {
+        setLoadingPricing(true);
+        const response = await fetch('/api/pricing-settings');
+        const isJson =
+          response.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await response.json() : await response.text();
+
+        if (!response.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load pricing settings.';
+          toast.error(message);
+          return;
+        }
+
+        setPricingSettings(body as any);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load pricing settings. Please try again.';
+        toast.error(message);
+      } finally {
+        setLoadingPricing(false);
+      }
+    };
+
     void loadProducts();
     void loadFees();
+    void loadPricingSettings();
   }, [user]);
 
   if (checking || !user) {
@@ -264,6 +307,46 @@ export default function AdminProductsPage() {
       toast.error(message);
     } finally {
       setUpdatingProductId(null);
+    }
+  };
+
+  const savePricingSettings = async () => {
+    if (!pricingSettings) return;
+
+    try {
+      setSavingPricing(true);
+      const response = await fetch('/api/pricing-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pricingSettings),
+      });
+
+      const isJson =
+        response.headers
+          .get('content-type')
+          ?.toLowerCase()
+          .includes('application/json') ?? false;
+      const body = isJson ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message =
+          typeof body === 'string'
+            ? body
+            : body?.message ?? 'Unable to update pricing settings.';
+        toast.error(message);
+        return;
+      }
+
+      setPricingSettings(body as any);
+      toast.success('Pricing settings updated.');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to update pricing settings. Please try again.';
+      toast.error(message);
+    } finally {
+      setSavingPricing(false);
     }
   };
 
@@ -741,8 +824,150 @@ export default function AdminProductsPage() {
             )}
           </Card>
         </section>
+
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Quote configuration</h2>
+          <Card className="p-4 space-y-3 text-xs">
+            <p className="text-xs text-muted-foreground">
+              Configure how logistics, miscellaneous and tax are calculated for
+              all quotes. Changes here update new quotes and any quotes whose
+              items are edited.
+            </p>
+
+            {loadingPricing || !pricingSettings ? (
+              <p className="text-muted-foreground">Loading pricing settings...</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] text-muted-foreground">
+                      Logistics per trip (Lagos)
+                    </span>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-xs"
+                      value={pricingSettings.logisticsPerTripLagos}
+                      onChange={(event) =>
+                        setPricingSettings((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                logisticsPerTripLagos: Number(
+                                  event.target.value || 0,
+                                ),
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] text-muted-foreground">
+                      Logistics per trip (South-West near Lagos)
+                    </span>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-xs"
+                      value={pricingSettings.logisticsPerTripWestNear}
+                      onChange={(event) =>
+                        setPricingSettings((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                logisticsPerTripWestNear: Number(
+                                  event.target.value || 0,
+                                ),
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] text-muted-foreground">
+                      Logistics per trip (other states)
+                    </span>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-xs"
+                      value={pricingSettings.logisticsPerTripOther}
+                      onChange={(event) =>
+                        setPricingSettings((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                logisticsPerTripOther: Number(
+                                  event.target.value || 0,
+                                ),
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] text-muted-foreground">
+                      Miscellaneous (% of devices subtotal)
+                    </span>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-xs"
+                      value={pricingSettings.miscRatePercent}
+                      onChange={(event) =>
+                        setPricingSettings((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                miscRatePercent: Number(
+                                  event.target.value || 0,
+                                ),
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] text-muted-foreground">
+                      Tax (% of subtotal + fees)
+                    </span>
+                    <input
+                      type="number"
+                      className="border rounded px-2 py-1 text-xs"
+                      value={pricingSettings.taxRatePercent}
+                      onChange={(event) =>
+                        setPricingSettings((prev) =>
+                          prev
+                            ? {
+                                ...prev,
+                                taxRatePercent: Number(
+                                  event.target.value || 0,
+                                ),
+                              }
+                            : prev,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    disabled={savingPricing}
+                    onClick={savePricingSettings}
+                  >
+                    {savingPricing ? 'Saving...' : 'Save quote settings'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </section>
       </main>
     </div>
   );
 }
-

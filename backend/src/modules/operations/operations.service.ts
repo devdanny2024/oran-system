@@ -8,7 +8,10 @@ import { EmailService } from '../../infrastructure/email/email.service';
 import * as bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { MilestonesService } from '../milestones/milestones.service';
-import { computeQuoteFees } from '../../domain/pricing/quote-fees';
+import {
+  computeQuoteFees,
+  QuoteFeeConfig,
+} from '../../domain/pricing/quote-fees';
 
 @Injectable()
 export class OperationsService {
@@ -709,11 +712,14 @@ export class OperationsService {
         });
       }
 
+      const config = await this.getQuoteFeeConfig();
+
       const fees = computeQuoteFees(
         subtotal,
         totalDevices,
         null,
         payload.roomsCount ?? null,
+        config,
       );
 
       const updatedQuote = await tx.quote.update({
@@ -748,6 +754,19 @@ export class OperationsService {
     return {
       projectId: result.project.id,
       quoteId: result.quote.id,
+    };
+  }
+
+  private async getQuoteFeeConfig(): Promise<QuoteFeeConfig | null> {
+    const settings = await (this.prisma as any).pricingSettings.findFirst();
+    if (!settings) return null;
+
+    return {
+      logisticsPerTripLagos: Number(settings.logisticsPerTripLagos),
+      logisticsPerTripWestNear: Number(settings.logisticsPerTripWestNear),
+      logisticsPerTripOther: Number(settings.logisticsPerTripOther),
+      miscRate: Number(settings.miscRate),
+      taxRate: Number(settings.taxRate),
     };
   }
 }

@@ -19,6 +19,7 @@ import { AiModule } from '../../infrastructure/ai/ai.module';
 import { PaystackModule } from '../../infrastructure/paystack/paystack.module';
 import { RevenueModule } from '../revenue/revenue.module';
 import { ServiceFeesModule } from '../service-fees/service-fees.module';
+import { PricingSettingsModule } from '../pricing-settings/pricing-settings.module';
 import { FinanceModule } from '../finance/finance.module';
 
 @Module({
@@ -44,6 +45,7 @@ import { FinanceModule } from '../finance/finance.module';
     AgreementsModule,
     MilestonesModule,
     ServiceFeesModule,
+    PricingSettingsModule,
     PaymentPlanModule,
   ],
   controllers: [AppController],

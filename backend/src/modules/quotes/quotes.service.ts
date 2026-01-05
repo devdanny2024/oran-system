@@ -4,7 +4,10 @@ import { PriceTier, ProductCategory } from '@prisma/client';
 import { AddQuoteItemDto } from './dto/add-quote-item.dto';
 import { UpdateQuoteItemDto } from './dto/update-quote-item.dto';
 import { AiService } from '../../infrastructure/ai/ai.service';
-import { computeQuoteFees } from '../../domain/pricing/quote-fees';
+import {
+  computeQuoteFees,
+  QuoteFeeConfig,
+} from '../../domain/pricing/quote-fees';
 import { AgreementsService } from '../agreements/agreements.service';
 
 interface GeneratedQuoteItemInput {
@@ -15,8 +18,8 @@ interface GeneratedQuoteItemInput {
   unitPrice: number;
 }
 
-@Injectable()
-export class QuotesService {
+  @Injectable()
+  export class QuotesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
@@ -202,14 +205,17 @@ export class QuotesService {
 
     const locationHint =
       (quoteWithItems as any).project?.onboarding?.siteAddress ?? null;
-    const roomsCount = (quoteWithItems as any).project?.roomsCount ?? null;
+      const roomsCount = (quoteWithItems as any).project?.roomsCount ?? null;
 
-    const fees = computeQuoteFees(
-      subtotalNumber,
-      totalDevices,
-      locationHint,
-      roomsCount,
-    );
+      const config = await this.getQuoteFeeConfig();
+
+      const fees = computeQuoteFees(
+        subtotalNumber,
+        totalDevices,
+        locationHint,
+        roomsCount,
+        config,
+      );
 
     const updated = await client.quote.update({
       where: { id: quoteId },
@@ -371,13 +377,16 @@ export class QuotesService {
           (sum, item) => sum + item.quantity,
           0,
         );
-        const locationHint = project.onboarding?.siteAddress ?? null;
-        const fees = computeQuoteFees(
-          subtotalNumber,
-          totalDevices,
-          locationHint,
-          project.roomsCount ?? null,
-        );
+          const locationHint = project.onboarding?.siteAddress ?? null;
+          const config = await this.getQuoteFeeConfig();
+
+          const fees = computeQuoteFees(
+            subtotalNumber,
+            totalDevices,
+            locationHint,
+            project.roomsCount ?? null,
+            config,
+          );
 
         const quote = await tx.quote.create({
           data: {
@@ -646,5 +655,18 @@ export class QuotesService {
     }
 
     return items;
+  }
+
+  private async getQuoteFeeConfig(): Promise<QuoteFeeConfig | null> {
+    const settings = await (this.prisma as any).pricingSettings.findFirst();
+    if (!settings) return null;
+
+    return {
+      logisticsPerTripLagos: Number(settings.logisticsPerTripLagos),
+      logisticsPerTripWestNear: Number(settings.logisticsPerTripWestNear),
+      logisticsPerTripOther: Number(settings.logisticsPerTripOther),
+      miscRate: Number(settings.miscRate),
+      taxRate: Number(settings.taxRate),
+    };
   }
 }

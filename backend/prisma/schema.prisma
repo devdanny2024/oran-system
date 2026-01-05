@@ -90,6 +90,17 @@ model ServiceFee {
   updatedAt       DateTime       @updatedAt
 }
 
+model PricingSettings {
+  id                      String   @id @default(cuid())
+  logisticsPerTripLagos   Decimal  @default(50000)
+  logisticsPerTripWestNear Decimal @default(60000)
+  logisticsPerTripOther   Decimal  @default(100000)
+  miscRate                Decimal  @default(0.05)
+  taxRate                 Decimal  @default(0.075)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
 model Trip {
   id            String        @id @default(cuid())
   project       Project       @relation(fields: [projectId], references: [id])
