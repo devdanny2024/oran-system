@@ -1,32 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BACKEND_API_BASE_URL =
+  process.env.BACKEND_API_BASE_URL ||
+  'http://ec2-51-20-60-80.eu-north-1.compute.amazonaws.com:4000';
+
 export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => ({}));
 
-  const amount = Number(payload.amount ?? 0);
-  const beneficiaryId = String(payload.beneficiaryId ?? '');
-  const description =
-    typeof payload.description === 'string' ? payload.description : null;
+  const res = await fetch(`${BACKEND_API_BASE_URL}/finance/disburse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-  const status =
-    amount > 200_000 ? 'PENDING_ADMIN_APPROVAL' : 'SUCCESS';
+  const body = await res.text();
 
-  const disbursement = {
-    id: `stub-${Date.now()}`,
-    amount,
-    currency: 'NGN',
-    description,
-    status,
-    createdAt: new Date().toISOString(),
-    beneficiary: {
-      id: beneficiaryId,
-      name: 'Beneficiary',
-      bankName: '',
-      bankCode: '',
-      accountNumber: '',
-      accountName: '',
-    },
-  };
-
-  return NextResponse.json(disbursement, { status: 201 });
+  return new NextResponse(body, {
+    status: res.status,
+    headers: res.headers,
+  });
 }
