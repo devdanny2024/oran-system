@@ -1036,6 +1036,11 @@ export default function ProjectDetailPage() {
                 >
                   Make payment now
                 </Button>
+                <p className="text-[11px] text-muted-foreground max-w-xs mt-1">
+                  Inspection fees are non-refundable. Project milestone payments
+                  are only refundable for defective devices; labour and
+                  completed work are non-refundable.
+                </p>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">
