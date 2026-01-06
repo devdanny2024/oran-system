@@ -20,7 +20,6 @@ model User {
   resetPasswordExpires DateTime?
   projects         Project[]
   technicianTrips  Trip[]          @relation("TechnicianTrips")
-  supportTickets   SupportTicket[] @relation("UserSupportTickets")
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 }
