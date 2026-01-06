@@ -24,14 +24,14 @@ export class NotificationsService {
     });
 
     if (params.sendEmail) {
-      const to =
-        process.env.ADMIN_NOTIFICATION_EMAIL ||
-        process.env.SUPPORT_INBOX_EMAIL ||
-        process.env.SMTP_FROM ||
-        '';
-      if (to) {
+      const admins = await this.prisma.user.findMany({
+        where: { role: 'ADMIN' },
+      });
+
+      for (const admin of admins) {
+        if (!admin.email) continue;
         await (this.email as any)['sendEmail']?.({
-          to,
+          to: admin.email,
           subject: params.title,
           html: `<p>${params.message.replace(/\n/g, '<br />')}</p>`,
         });
@@ -55,4 +55,3 @@ export class NotificationsService {
     });
   }
 }
-
