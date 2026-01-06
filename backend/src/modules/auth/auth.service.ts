@@ -15,6 +15,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { EmailService } from '../../infrastructure/email/email.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @Injectable()
 export class AuthService {
@@ -269,5 +270,28 @@ export class AuthService {
       source: g.heardAboutUs || 'Unknown',
       count: g._count._all,
     }));
+  }
+
+  async loginWithGoogle(payload: GoogleLoginDto) {
+    const email = payload.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return {
+        status: 'NEW_USER',
+        email,
+        name: payload.name?.trim() || null,
+      };
+    }
+
+    const token = this.signToken(user);
+
+    return {
+      user: this.mapUser(user),
+      token,
+    };
   }
 }

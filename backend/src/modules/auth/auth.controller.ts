@@ -4,6 +4,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -17,6 +18,11 @@ export class AuthController {
   @Post('login')
   login(@Body() payload: LoginDto) {
     return this.authService.login(payload);
+  }
+
+  @Post('google')
+  google(@Body() payload: GoogleLoginDto) {
+    return this.authService.loginWithGoogle(payload);
   }
 
   @Get('verify-email')

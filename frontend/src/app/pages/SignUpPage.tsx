@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -32,6 +32,28 @@ export default function SignUpPage() {
     heardAboutUs: '',
     agreedToTerms: false
   });
+
+  // If the user came from Google sign-in as a new customer,
+  // prefill name and email from the temporary storage.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const raw = window.localStorage.getItem('oran_google_prefill');
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as { email?: string; name?: string };
+      setFormData((prev) => ({
+        ...prev,
+        fullName: parsed.name || prev.fullName,
+        email: parsed.email || prev.email,
+      }));
+    } catch {
+      // ignore parse errors
+    } finally {
+      window.localStorage.removeItem('oran_google_prefill');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,7 +251,16 @@ export default function SignUpPage() {
                 </div>
               </div>
 
-              <Button type="button" variant="outline" className="w-full">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.href = '/api/auth/google';
+                  }
+                }}
+              >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
