@@ -4,6 +4,7 @@ import { MilestoneStatus, PaymentPlanType, TripStatus } from '@prisma/client';
 import { AiService } from '../../infrastructure/ai/ai.service';
 import { PaystackService } from '../../infrastructure/paystack/paystack.service';
 import { EmailService } from '../../infrastructure/email/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface MilestonePlan {
   milestones: {
@@ -21,6 +22,7 @@ export class MilestonesService {
     private readonly ai: AiService,
     private readonly paystack: PaystackService,
     private readonly email: EmailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listForProject(projectId: string) {
@@ -176,6 +178,13 @@ export class MilestonesService {
     // notify the customer.
     await this.addMilestoneDevicesToShipment(projectId, milestone);
     await this.createOperationsVisitAndNotify(projectId, milestoneId);
+
+    await this.notifications.createAdminNotification({
+      type: 'MILESTONE_PAID',
+      title: 'Milestone payment completed',
+      message: `Milestone ${updated.index} has been paid for project ${projectId}.`,
+      sendEmail: true,
+    });
 
     return {
       milestoneId,

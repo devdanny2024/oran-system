@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { ProjectStatus } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class AgreementsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async listForProject(projectId: string) {
     let agreements = await (this.prisma as any).projectAgreement.findMany({
@@ -244,9 +248,18 @@ export class AgreementsService {
         });
       }
 
-      return saved;
+      return { saved, allSigned: remaining === 0 };
     });
 
-    return updated;
+    if (updated.allSigned) {
+      await this.notifications.createAdminNotification({
+        type: 'DOCUMENTS_SIGNED',
+        title: 'All project documents signed',
+        message: `All agreements have been signed for project ${params.projectId}.`,
+        sendEmail: true,
+      });
+    }
+
+    return updated.saved;
   }
 }

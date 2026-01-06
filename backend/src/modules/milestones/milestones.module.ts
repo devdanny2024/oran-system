@@ -5,9 +5,10 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { AiModule } from '../../infrastructure/ai/ai.module';
 import { PaystackModule } from '../../infrastructure/paystack/paystack.module';
 import { EmailModule } from '../../infrastructure/email/email.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, AiModule, PaystackModule, EmailModule],
+  imports: [PrismaModule, AiModule, PaystackModule, EmailModule, NotificationsModule],
   providers: [MilestonesService],
   controllers: [MilestonesController],
   exports: [MilestonesService],

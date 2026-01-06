@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { EmailService } from '../../infrastructure/email/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SupportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async createTicket(params: {
@@ -46,6 +48,13 @@ export class SupportService {
         html,
       });
     }
+
+    await this.notifications.createAdminNotification({
+      type: 'SUPPORT_TICKET_CREATED',
+      title: 'New support ticket',
+      message: `From ${ticket.name} <${ticket.email}>: ${ticket.subject}`,
+      sendEmail: false,
+    });
 
     return ticket;
   }

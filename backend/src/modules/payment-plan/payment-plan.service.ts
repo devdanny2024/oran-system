@@ -2,12 +2,14 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { PaymentPlanType, ProjectStatus } from '@prisma/client';
 import { MilestonesService } from '../milestones/milestones.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PaymentPlanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly milestones: MilestonesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async getForProject(projectId: string) {
@@ -54,6 +56,13 @@ export class PaymentPlanService {
     // Generate or refresh milestone breakdown for this project
     // based on the chosen payment plan and selected quote.
     await this.milestones.createForPaymentPlan(projectId, type);
+
+    await this.notifications.createAdminNotification({
+      type: 'PAYMENT_PLAN_SET',
+      title: 'Payment plan chosen for project',
+      message: `Project ${projectId} selected payment plan ${type}.`,
+      sendEmail: true,
+    });
 
     return updated;
   }

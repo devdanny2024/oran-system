@@ -9,6 +9,7 @@ import {
   QuoteFeeConfig,
 } from '../../domain/pricing/quote-fees';
 import { AgreementsService } from '../agreements/agreements.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 interface GeneratedQuoteItemInput {
   productId: string | null;
@@ -24,6 +25,7 @@ interface GeneratedQuoteItemInput {
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
     private readonly agreements: AgreementsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listForProject(projectId: string) {
@@ -80,6 +82,13 @@ interface GeneratedQuoteItemInput {
 
     // Ensure project agreements exist once a quote is selected.
     await this.agreements.createForProjectIfMissing(existing.projectId);
+
+    await this.notifications.createAdminNotification({
+      type: 'QUOTE_SELECTED',
+      title: 'Quote selected for project',
+      message: `A customer selected a quote for project ${existing.projectId}.`,
+      sendEmail: true,
+    });
 
     return updated;
   }

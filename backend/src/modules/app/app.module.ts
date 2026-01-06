@@ -22,6 +22,7 @@ import { ServiceFeesModule } from '../service-fees/service-fees.module';
 import { PricingSettingsModule } from '../pricing-settings/pricing-settings.module';
 import { FinanceModule } from '../finance/finance.module';
 import { SupportModule } from '../support/support.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SupportModule } from '../support/support.module';
     RevenueModule,
     FinanceModule,
     SupportModule,
+    NotificationsModule,
     AuthModule,
     ProjectsModule,
     OnboardingModule,

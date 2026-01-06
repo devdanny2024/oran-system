@@ -3,6 +3,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { EmailService } from '../../infrastructure/email/email.service';
 import { PaystackService } from '../../infrastructure/paystack/paystack.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ProjectsService {
@@ -10,6 +11,7 @@ export class ProjectsService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly paystack: PaystackService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(payload: CreateProjectDto) {
@@ -371,6 +373,13 @@ export class ProjectsService {
       siteAddress: address,
       fee: feeNaira,
       projectUrl,
+    });
+
+    await this.notifications.createAdminNotification({
+      type: 'INSPECTION_REQUESTED',
+      title: 'Inspection fee paid and request logged',
+      message: `Inspection fee paid for project ${project.name} (${project.id}).`,
+      sendEmail: false,
     });
 
     return {

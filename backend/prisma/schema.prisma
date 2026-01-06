@@ -296,6 +296,15 @@ model SupportTicket {
   updatedAt DateTime      @updatedAt
 }
 
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  message   String
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+}
+
 enum SupportStatus {
   OPEN
   IN_PROGRESS

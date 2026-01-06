@@ -4,8 +4,10 @@ import { EmailService } from '../../infrastructure/email/email.service';
 import { SupportService } from './support.service';
 import { SupportController } from './support.controller';
 import { SupportAdminController } from './support.admin.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
+  imports: [NotificationsModule],
   providers: [PrismaService, EmailService, SupportService],
   controllers: [SupportController, SupportAdminController],
   exports: [SupportService],

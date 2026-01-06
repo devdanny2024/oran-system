@@ -2,12 +2,14 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { FinanceDisbursementStatus } from '@prisma/client';
 import { PaystackService } from '../../infrastructure/paystack/paystack.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class FinanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly paystack: PaystackService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async assertFinanceAccess(userId: string) {
@@ -154,6 +156,12 @@ export class FinanceService {
 
     if (params.amountNaira > MAX_AUTO_DISBURSE) {
       // Do not call Paystack; leave for admin to handle manually.
+      await this.notifications.createAdminNotification({
+        type: 'LARGE_DISBURSEMENT_PENDING_APPROVAL',
+        title: 'Large disbursement requires approval',
+        message: `₦${params.amountNaira.toLocaleString()} to ${beneficiary.name} is awaiting admin approval.`,
+        sendEmail: true,
+      });
       return base;
     }
 
