@@ -21,6 +21,7 @@ import { RevenueModule } from '../revenue/revenue.module';
 import { ServiceFeesModule } from '../service-fees/service-fees.module';
 import { PricingSettingsModule } from '../pricing-settings/pricing-settings.module';
 import { FinanceModule } from '../finance/finance.module';
+import { SupportModule } from '../support/support.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { FinanceModule } from '../finance/finance.module';
     PaystackModule,
     RevenueModule,
     FinanceModule,
+    SupportModule,
     AuthModule,
     ProjectsModule,
     OnboardingModule,

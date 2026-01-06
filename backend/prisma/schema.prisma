@@ -283,6 +283,25 @@ model BillingInvoice {
   updatedAt        DateTime             @updatedAt
 }
 
+model SupportTicket {
+  id          String        @id @default(cuid())
+  user        User?         @relation(fields: [userId], references: [id])
+  userId      String?
+  name        String
+  email       String
+  subject     String
+  message     String
+  status      SupportStatus @default(OPEN)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
 enum FinanceDisbursementStatus {
   PENDING
   PENDING_ADMIN_APPROVAL
