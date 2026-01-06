@@ -35,6 +35,8 @@ export default function AdminSupport() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
   const [activeTicket, setActiveTicket] = useState<SupportTicket | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replySubmitting, setReplySubmitting] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -213,12 +215,88 @@ export default function AdminSupport() {
                 {activeTicket.message}
               </div>
               <Separator />
-              <p className="text-[11px] text-muted-foreground">
-                To reply, compose an email to{' '}
-                <span className="font-semibold">{activeTicket.email}</span>{' '}
-                (e.g. from your support inbox). In a future iteration we can
-                add direct reply-from-admin support.
-              </p>
+              <div className="space-y-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Reply to <span className="font-semibold">{activeTicket.email}</span>{' '}
+                  and we&apos;ll send this message as an email from ORAN.
+                </p>
+                <textarea
+                  className="border rounded-md px-2 py-1 text-xs bg-background w-full min-h-[100px]"
+                  placeholder="Type your reply to the customer…"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    disabled={replySubmitting || !replyText.trim()}
+                    onClick={async () => {
+                      if (!replyText.trim()) return;
+                      try {
+                        setReplySubmitting(true);
+                        const res = await fetch(
+                          `/api/support/admin/tickets/${encodeURIComponent(
+                            activeTicket.id,
+                          )}/reply`,
+                          {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              message: replyText.trim(),
+                              adminName: user?.name ?? user?.email ?? 'ORAN support',
+                              markResolved: true,
+                            }),
+                          },
+                        );
+
+                        const isJson =
+                          res.headers
+                            .get('content-type')
+                            ?.toLowerCase()
+                            .includes('application/json') ?? false;
+                        const body = isJson ? await res.json() : await res.text();
+
+                        if (!res.ok) {
+                          const message =
+                            typeof body === 'string'
+                              ? body
+                              : body?.message ?? 'Unable to send reply. Please try again.';
+                          toast.error(message);
+                          return;
+                        }
+
+                        toast.success('Reply sent to customer.');
+                        setReplyText('');
+                        const updatedStatus =
+                          (body as any)?.status ?? activeTicket.status;
+                        setTickets((prev) =>
+                          prev.map((t) =>
+                            t.id === activeTicket.id
+                              ? { ...t, status: updatedStatus }
+                              : t,
+                          ),
+                        );
+                        setActiveTicket((prev) =>
+                          prev ? { ...prev, status: updatedStatus } : prev,
+                        );
+                      } catch (error) {
+                        const message =
+                          error instanceof Error
+                            ? error.message
+                            : 'Unable to send reply. Please try again.';
+                        toast.error(message);
+                      } finally {
+                        setReplySubmitting(false);
+                      }
+                    }}
+                  >
+                    {replySubmitting ? 'Sending…' : 'Send reply & mark resolved'}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground">
+                    This will send an email and set the ticket to resolved.
+                  </p>
+                </div>
+              </div>
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
@@ -230,4 +308,3 @@ export default function AdminSupport() {
     </div>
   );
 }
-

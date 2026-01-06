@@ -55,5 +55,50 @@ export class SupportService {
       orderBy: { createdAt: 'desc' },
     });
   }
-}
 
+  async replyToTicket(params: {
+    id: string;
+    replyMessage: string;
+    adminName?: string | null;
+    markResolved?: boolean;
+  }) {
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!ticket) {
+      throw new Error('Support ticket not found');
+    }
+
+    const greetingName = ticket.name || 'there';
+    const adminName = params.adminName?.trim() || 'ORAN support';
+
+    const html = `
+      <p>Hi ${greetingName},</p>
+      <p>${params.replyMessage.replace(/\n/g, '<br />')}</p>
+      <p>Best regards,<br />${adminName}</p>
+    `;
+
+    await (this.email as any)['sendEmail']?.({
+      to: ticket.email,
+      subject: `Re: ${ticket.subject}`,
+      html,
+    });
+
+    const nextStatus =
+      params.markResolved === true && ticket.status !== 'RESOLVED'
+        ? 'RESOLVED'
+        : ticket.status === 'OPEN'
+          ? 'IN_PROGRESS'
+          : ticket.status;
+
+    if (nextStatus !== ticket.status) {
+      await this.prisma.supportTicket.update({
+        where: { id: ticket.id },
+        data: { status: nextStatus as any },
+      });
+    }
+
+    return { ticketId: ticket.id, status: nextStatus };
+  }
+}
