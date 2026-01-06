@@ -1,4 +1,5 @@
-export default function Page() {
-  return <div>Support Page - Coming Soon</div>;
-}
+import SupportPage from '../../src/app/pages/dashboard/pages/SupportPage';
 
+export default function Page() {
+  return <SupportPage />;
+}
