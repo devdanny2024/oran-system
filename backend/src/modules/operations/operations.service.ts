@@ -136,7 +136,7 @@ export class OperationsService {
     });
 
     // If this is the first scheduled visit after an inspection request,
-    // mark the project as INSPECTION_SCHEDULED and notify the customer.
+    // mark the project as INSPECTION_SCHEDULED and send the inspection email.
     if (
       project.status === 'INSPECTION_REQUESTED' ||
       project.status === 'INSPECTION_SCHEDULED'
@@ -160,6 +160,25 @@ export class OperationsService {
           projectUrl,
         });
       }
+    } else if (project.user) {
+      // For non-inspection trips (e.g. operations / installation visits),
+      // send the standard operations schedule email so customers always
+      // get a notification when a trip is created from the admin side.
+      const frontendBase = this.emailService.getFrontendBaseUrl();
+      const operationsUrl = `${frontendBase}/dashboard/operations?projectId=${encodeURIComponent(
+        project.id,
+      )}`;
+      const siteAddress =
+        project.onboarding?.siteAddress ?? 'Not provided';
+
+      await this.emailService.sendOperationsScheduleEmail({
+        to: project.user.email,
+        name: project.user.name ?? undefined,
+        projectName: project.name,
+        siteAddress,
+        scheduledFor,
+        operationsUrl,
+      });
     }
 
     await this.notifications.createAdminNotification({
