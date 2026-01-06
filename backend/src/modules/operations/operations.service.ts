@@ -12,6 +12,7 @@ import {
   computeQuoteFees,
   QuoteFeeConfig,
 } from '../../domain/pricing/quote-fees';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OperationsService {
@@ -19,6 +20,7 @@ export class OperationsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly milestones: MilestonesService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async createTrip(payload: CreateTripDto) {
@@ -159,6 +161,13 @@ export class OperationsService {
         });
       }
     }
+
+    await this.notifications.createAdminNotification({
+      type: 'TRIP_SCHEDULED',
+      title: 'Site visit scheduled',
+      message: `A trip has been scheduled for project ${project.name} (${project.id}) on ${scheduledFor.toLocaleString()}.`,
+      sendEmail: true,
+    });
 
     return trip;
   }
@@ -387,6 +396,13 @@ export class OperationsService {
         operationsUrl,
       });
     }
+
+    await this.notifications.createAdminNotification({
+      type: 'TRIP_REOPENED_REWORK',
+      title: 'Trip reopened for rework',
+      message: `Trip ${trip.id} for project ${trip.projectId} was reopened for rework. Reason: ${reason || 'N/A'}.`,
+      sendEmail: true,
+    });
 
     return updated;
   }
@@ -777,6 +793,13 @@ export class OperationsService {
       name: user.name,
       projectName: result.project.name,
       quoteUrl,
+    });
+
+    await this.notifications.createAdminNotification({
+      type: 'INSPECTION_QUOTE_CREATED',
+      title: 'Inspection quote created',
+      message: `An inspection quote was created for project ${result.project.name} (${result.project.id}).`,
+      sendEmail: true,
     });
 
     return {

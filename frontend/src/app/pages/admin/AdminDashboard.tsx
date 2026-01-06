@@ -45,6 +45,15 @@ type HeardAboutUsEntry = {
   count: number;
 };
 
+type AdminNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  readAt?: string | null;
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<OranUser | null>(null);
@@ -58,6 +67,7 @@ export default function AdminDashboard() {
   const [totalProjected, setTotalProjected] = useState(0);
   const [revenuePerProject, setRevenuePerProject] = useState<RevenueProject[]>([]);
   const [heardAboutUs, setHeardAboutUs] = useState<HeardAboutUsEntry[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -209,9 +219,46 @@ export default function AdminDashboard() {
       }
     };
 
+    const loadNotifications = async () => {
+      try {
+        const res = await fetch('/api/admin/notifications');
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load admin notifications.';
+          toast.error(message);
+          return;
+        }
+
+        const items = (((body as any)?.items ?? []) as AdminNotification[]).map(
+          (n) => ({
+            ...n,
+            createdAt: n.createdAt,
+            readAt: n.readAt ?? null,
+          }),
+        );
+        setNotifications(items);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load admin notifications. Please try again.';
+        toast.error(message);
+      }
+    };
+
     void loadProjects();
     void loadRevenue();
     void loadHeardAboutUs();
+    void loadNotifications();
   }, [user]);
 
   const totalProjects = projects.length;
@@ -336,6 +383,81 @@ export default function AdminDashboard() {
               Sum of all completed milestone payments compared with total
               milestone values across projects.
             </p>
+          </Card>
+        </section>
+
+        {/* Admin notifications */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">Recent admin notifications</h2>
+          <Card className="p-4 text-xs space-y-2">
+            {notifications.length === 0 ? (
+              <p className="text-muted-foreground">
+                No notifications yet. Events like quote selection, documents
+                signing, payment plan choice and milestone payments will appear
+                here.
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {notifications.slice(0, 10).map((n) => (
+                  <div
+                    key={n.id}
+                    className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 border rounded-md px-3 py-2"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">{n.title}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {n.message}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(n.createdAt).toLocaleString('en-NG', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      {n.readAt ? (
+                        <span className="text-[10px] text-muted-foreground">
+                          Read
+                        </span>
+                      ) : (
+                        <button
+                          className="text-[10px] text-primary hover:underline"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(
+                                `/api/admin/notifications/${encodeURIComponent(
+                                  n.id,
+                                )}/read`,
+                                { method: 'POST' },
+                              );
+                              if (!res.ok) return;
+                              setNotifications((prev) =>
+                                prev.map((x) =>
+                                  x.id === n.id
+                                    ? {
+                                        ...x,
+                                        readAt: new Date().toISOString(),
+                                      }
+                                    : x,
+                                ),
+                              );
+                            } catch {
+                              // ignore
+                            }
+                          }}
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </section>
 

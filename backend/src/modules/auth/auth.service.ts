@@ -14,6 +14,7 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { EmailService } from '../../infrastructure/email/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly emailService: EmailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private getJwtConfig() {
@@ -172,6 +174,13 @@ export class AuthService {
     });
 
     const jwtToken = this.signToken(updated);
+
+    await this.notifications.createAdminNotification({
+      type: 'USER_VERIFIED',
+      title: 'New customer verified their email',
+      message: `User ${updated.email} has verified their email. Source: ${updated.heardAboutUs || 'Unknown'}.`,
+      sendEmail: false,
+    });
 
     return {
       user: this.mapUser(updated),

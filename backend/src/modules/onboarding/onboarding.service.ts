@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { StartOnboardingDto } from './dto/start-onboarding.dto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class OnboardingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async start(payload: StartOnboardingDto) {
     const project = await this.prisma.project.findUnique({
@@ -37,6 +41,15 @@ export class OnboardingService {
         contactPhone: payload.contactPhone ?? undefined,
       },
     });
+
+    if (payload.needsInspection) {
+      await this.notifications.createAdminNotification({
+        type: 'ONBOARDING_NEEDS_INSPECTION',
+        title: 'Onboarding indicates inspection needed',
+        message: `Project ${project.name} (${project.id}) marked as needing inspection during onboarding.`,
+        sendEmail: false,
+      });
+    }
 
     return onboarding;
   }
