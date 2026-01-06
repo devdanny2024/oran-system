@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, Users, Wrench, Wallet, Tag } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../../components/ui/avatar';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
@@ -69,6 +70,7 @@ export default function AdminLayout({
     { name: 'Inspection requests', href: '/admin/inspections', icon: Wrench },
     { name: 'Products & pricing', href: '/admin/products', icon: Tag },
     { name: 'Finance', href: '/admin/finance', icon: Wallet },
+    { name: 'Support', href: '/admin/support', icon: HelpCircle },
     { name: 'Technicians', href: '/admin/technicians', icon: Users },
   ];
 
