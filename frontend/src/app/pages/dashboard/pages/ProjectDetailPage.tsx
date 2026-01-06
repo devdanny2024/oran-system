@@ -601,6 +601,7 @@ export default function ProjectDetailPage() {
     (onboarding?.selectedFeatures as string[] | undefined) ?? undefined;
   const allDocumentsAccepted =
     agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
+  const hasSelectedQuote = quotes.some((q) => q.isSelected);
   const nextPayableMilestone =
     milestones.find((m) => m.status === 'PENDING') ?? null;
   const effectivePaymentPlanSelection =
@@ -608,6 +609,30 @@ export default function ProjectDetailPage() {
       | 'MILESTONE_3'
       | 'EIGHTY_TEN_TEN'
       | '';
+  const hasCompletedMilestone = milestones.some(
+    (m) => m.status === 'COMPLETED',
+  );
+  const showInspectionCard =
+    project.status === 'INSPECTION_REQUESTED' ||
+    project.status === 'INSPECTION_SCHEDULED' ||
+    project.status === 'INSPECTION_COMPLETED';
+  const isDocumentsStageStatus =
+    project.status === 'DOCUMENTS_PENDING' ||
+    project.status === 'DOCUMENTS_SIGNED' ||
+    project.status === 'PAYMENT_PLAN_SELECTED' ||
+    project.status === 'IN_PROGRESS' ||
+    project.status === 'COMPLETED';
+  const showDocumentsCard =
+    isDocumentsStageStatus || hasSelectedQuote || agreements.length > 0;
+  const documentsNeedAttention = showDocumentsCard && !allDocumentsAccepted;
+  const showPaymentPlanCard =
+    allDocumentsAccepted ||
+    project.status === 'DOCUMENTS_SIGNED' ||
+    project.status === 'PAYMENT_PLAN_SELECTED' ||
+    project.status === 'IN_PROGRESS' ||
+    project.status === 'COMPLETED';
+  const paymentPlanNeedsAttention =
+    showPaymentPlanCard && !effectivePaymentPlanSelection;
 
   const nextStepForCard:
     | {
@@ -926,6 +951,43 @@ export default function ProjectDetailPage() {
             using our automation product catalog. You&apos;ll be able to open a
             quote, edit items and choose the package that works best for you.
           </p>
+        ) : hasSelectedQuote ? (
+          <div className="border rounded-md p-3 text-xs flex flex-col gap-2 bg-muted/40">
+            {(() => {
+              const selected = quotes.find((q) => q.isSelected) ?? quotes[0];
+              return (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">
+                        {selected.title ||
+                          `${selected.tier.toLowerCase()} package`}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Selected quote · {selected.items.length} items
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        router.push(`/dashboard/quotes/${selected.id}`)
+                      }
+                    >
+                      View quote
+                    </Button>
+                  </div>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>Total (incl. fees & tax)</span>
+                    <span className="text-primary">
+                      ₦{selected.total.toLocaleString()}
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-3">
             {quotes.map((quote) => (
@@ -945,21 +1007,20 @@ export default function ProjectDetailPage() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="font-medium">
-                    â‚¦{quote.subtotal.toLocaleString()}
+                    ₦{quote.subtotal.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-semibold">
                   <span>Total (incl. fees & tax)</span>
                   <span className="text-primary">
-                    â‚¦{quote.total.toLocaleString()}
+                    ₦{quote.total.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-[11px] text-muted-foreground">
                   <span>
-                    {quote.items.length} items Â· installation, integration,
+                    {quote.items.length} items · installation, integration,
                     logistics, misc & tax included
                   </span>
-                  {quote.isSelected && <span>Selected</span>}
                 </div>
                 <Button
                   size="sm"
@@ -976,6 +1037,8 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </Card>
+
+
 
       {milestones.length > 0 && (
         <Card className="p-4 space-y-3">
@@ -1123,7 +1186,7 @@ export default function ProjectDetailPage() {
         </Card>
       )}
 
-      {trips.length > 0 && (
+      {hasCompletedMilestone && trips.length > 0 && (
         <Card className="p-4 space-y-3">
           <h2 className="text-sm font-semibold">Field operations</h2>
           <p className="text-xs text-muted-foreground">
@@ -1219,7 +1282,7 @@ export default function ProjectDetailPage() {
         </Card>
       )}
 
-      {deviceShipment && (
+      {hasCompletedMilestone && deviceShipment && (
         <Card className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Devices & logistics</h2>
@@ -1288,10 +1351,15 @@ export default function ProjectDetailPage() {
         </Card>
       )}
 
-      <Card
-        id="project-documents-section"
-        className="p-4 space-y-3"
-      >
+      {showDocumentsCard && (
+        <Card
+          id="project-documents-section"
+          className={
+            documentsNeedAttention
+              ? 'p-4 space-y-3 border-primary bg-primary/5'
+              : 'p-4 space-y-3'
+          }
+        >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Project documents</h2>
           <span className="text-xs text-muted-foreground">
@@ -1431,11 +1499,17 @@ export default function ProjectDetailPage() {
           </div>
         )}
       </Card>
+      )}
 
-      <Card
-        id="payment-plan-section"
-        className="p-4 space-y-3"
-      >
+      {showPaymentPlanCard && (
+        <Card
+          id="payment-plan-section"
+          className={
+            paymentPlanNeedsAttention
+              ? 'p-4 space-y-3 border-primary bg-primary/5'
+              : 'p-4 space-y-3'
+          }
+        >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Payment plan</h2>
           <span className="text-xs text-muted-foreground">
@@ -1620,6 +1694,7 @@ export default function ProjectDetailPage() {
           </>
         )}
       </Card>
+      )}
 
       <Card id="project-quotes-section" className="p-4 space-y-3">
         <h2 className="text-sm font-semibold">Onboarding summary</h2>
@@ -1659,6 +1734,7 @@ export default function ProjectDetailPage() {
         )}
       </Card>
 
+        {showInspectionCard && (
         <Card id="project-inspection-section" className="p-4 space-y-3">
           <h2 className="text-sm font-semibold">Site inspection</h2>
         <p className="text-xs text-muted-foreground">
@@ -1725,6 +1801,7 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </Card>
+      )}
 
       <Card className="p-4 space-y-3">
         <h2 className="text-sm font-semibold">Selected features</h2>
