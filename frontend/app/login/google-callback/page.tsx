@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 type AuthResponse = {
@@ -17,11 +17,15 @@ type NewUserResponse = {
 
 export default function GoogleCallbackPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
+    // Read query params on the client to avoid Next.js
+    // useSearchParams SSR + Suspense requirements.
+    const search =
+      typeof window !== 'undefined' ? window.location.search : '';
+    const params = new URLSearchParams(search);
+    const code = params.get('code');
+    const error = params.get('error');
 
     if (error) {
       toast.error('Google sign-in was cancelled or failed.');
@@ -113,7 +117,7 @@ export default function GoogleCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [router, searchParams]);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
