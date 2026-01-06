@@ -244,7 +244,7 @@ export default function QuoteDetailPage() {
   };
 
   const handleSelectQuote = async () => {
-    if (!quoteId) return;
+    if (!quoteId || !quote) return;
 
     try {
       setSelecting(true);
@@ -269,7 +269,11 @@ export default function QuoteDetailPage() {
       }
 
       toast.success('This quote is now your selected package.');
-      await loadQuote();
+
+      // After selecting a quote, automatically take the customer
+      // back to the project so they can continue with documents,
+      // payment plan and next steps.
+      router.push(`/dashboard/projects/${quote.projectId}`);
     } catch (error) {
       const message =
         error instanceof Error
@@ -532,4 +536,3 @@ export default function QuoteDetailPage() {
     </div>
   );
 }
-
