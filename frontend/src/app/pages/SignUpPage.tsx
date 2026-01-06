@@ -29,6 +29,7 @@ export default function SignUpPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    heardAboutUs: '',
     agreedToTerms: false
   });
 
@@ -51,11 +52,12 @@ export default function SignUpPage() {
 
     const result = await postJson<
       { user: { id: string; name: string | null; email: string; role: string }; token: string },
-      { name: string; email: string; password: string }
+      { name: string; email: string; password: string; heardAboutUs?: string }
     >('/auth/register', {
       name: formData.fullName,
       email: formData.email,
       password: formData.password,
+      heardAboutUs: formData.heardAboutUs || undefined,
     });
 
     setIsSubmitting(false);
@@ -133,6 +135,19 @@ export default function SignUpPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="heardAboutUs">Where did you hear about ORAN?</Label>
+                <Input
+                  id="heardAboutUs"
+                  type="text"
+                  placeholder="Instagram, a friend, event, search, etc."
+                  value={formData.heardAboutUs}
+                  onChange={(e) =>
+                    setFormData({ ...formData, heardAboutUs: e.target.value })
+                  }
                 />
               </div>
 

@@ -96,6 +96,7 @@ export class AuthService {
         name: payload.name,
         passwordHash,
         verificationToken,
+        heardAboutUs: payload.heardAboutUs?.trim() || undefined,
       },
     });
 
