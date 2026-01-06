@@ -33,4 +33,9 @@ export class AuthController {
   resetPassword(@Body() payload: ResetPasswordDto) {
     return this.authService.resetPassword(payload);
   }
+
+  @Get('analytics/heard-about-us')
+  heardAboutUsSummary() {
+    return this.authService.getHeardAboutUsSummary();
+  }
 }

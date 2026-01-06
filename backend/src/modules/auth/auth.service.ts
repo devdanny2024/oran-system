@@ -249,4 +249,16 @@ export class AuthService {
       message: 'Password reset successfully.',
     };
   }
+
+  async getHeardAboutUsSummary() {
+    const groups = await this.prisma.user.groupBy({
+      by: ['heardAboutUs'],
+      _count: { _all: true },
+    });
+
+    return groups.map((g) => ({
+      source: g.heardAboutUs || 'Unknown',
+      count: g._count._all,
+    }));
+  }
 }

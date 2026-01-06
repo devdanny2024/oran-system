@@ -40,6 +40,11 @@ type RevenueProject = {
 
 const ALLOWED_ROLES = ['ADMIN'];
 
+type HeardAboutUsEntry = {
+  source: string;
+  count: number;
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<OranUser | null>(null);
@@ -52,6 +57,7 @@ export default function AdminDashboard() {
   const [totalCollected, setTotalCollected] = useState(0);
   const [totalProjected, setTotalProjected] = useState(0);
   const [revenuePerProject, setRevenuePerProject] = useState<RevenueProject[]>([]);
+  const [heardAboutUs, setHeardAboutUs] = useState<HeardAboutUsEntry[]>([]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -169,8 +175,43 @@ export default function AdminDashboard() {
       }
     };
 
+    const loadHeardAboutUs = async () => {
+      try {
+        const res = await fetch('/api/admin/analytics/heard-about-us');
+        const isJson =
+          res.headers
+            .get('content-type')
+            ?.toLowerCase()
+            .includes('application/json') ?? false;
+        const body = isJson ? await res.json() : await res.text();
+
+        if (!res.ok) {
+          const message =
+            typeof body === 'string'
+              ? body
+              : body?.message ?? 'Unable to load acquisition sources.';
+          toast.error(message);
+          return;
+        }
+
+        const items = (body as any as HeardAboutUsEntry[]).map((e) => ({
+          source: e.source || 'Unknown',
+          count: Number(e.count ?? 0),
+        }));
+        items.sort((a, b) => b.count - a.count);
+        setHeardAboutUs(items);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Unable to load acquisition sources. Please try again.';
+        toast.error(message);
+      }
+    };
+
     void loadProjects();
     void loadRevenue();
+    void loadHeardAboutUs();
   }, [user]);
 
   const totalProjects = projects.length;
@@ -382,6 +423,37 @@ export default function AdminDashboard() {
                 Customer dashboard
               </Button>
             </div>
+          </Card>
+        </section>
+
+        {/* Acquisition sources */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold">
+            Where customers heard about ORAN
+          </h2>
+          <Card className="p-4 text-xs space-y-2">
+            {heardAboutUs.length === 0 ? (
+              <p className="text-muted-foreground">
+                No acquisition data yet. New registrations that include
+                &quot;Where did you hear about ORAN?&quot; will appear here.
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {heardAboutUs.map((entry) => (
+                  <div
+                    key={entry.source}
+                    className="flex items-center justify-between"
+                  >
+                    <span className="text-foreground font-medium">
+                      {entry.source}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {entry.count} signup{entry.count === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </section>
 
