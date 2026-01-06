@@ -39,6 +39,7 @@ export default function Dashboard({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<OranUser | null>(null);
   const [showInspectionSuccess, setShowInspectionSuccess] = useState(false);
+  const whatsappNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -228,8 +229,23 @@ export default function Dashboard({
         </main>
       </div>
 
-      {/* AI Chat Button */}
-      <button className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center">
+      {/* Chat Button → WhatsApp */}
+      <button
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center"
+        onClick={() => {
+          const base = 'https://wa.me';
+          if (typeof window === 'undefined') return;
+          if (whatsappNumber && whatsappNumber.trim().length > 0) {
+            const text = encodeURIComponent(
+              'Hi ORAN, I need help with my smart home project.'
+            );
+            window.open(`${base}/${whatsappNumber.trim()}?text=${text}`, '_blank');
+          } else {
+            window.open(base, '_blank');
+          }
+        }}
+        aria-label="Chat with ORAN on WhatsApp"
+      >
         <MessageCircle className="h-6 w-6" />
         <Badge className="absolute -top-1 -right-1 h-6 w-6 flex items-center justify-center p-0 text-xs">
           1
