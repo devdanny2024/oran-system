@@ -891,7 +891,7 @@ export default function ProjectDetailPage() {
         </Card>
       )}
 
-      <Card id="project-quotes-section" className="p-4 space-y-3">
+      <Card id="project-details-section" className="p-4 space-y-3">
         <h2 className="text-sm font-semibold">Project details</h2>
         <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
           <div>
@@ -904,6 +904,8 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </Card>
+
+
 
       {milestones.length > 0 && (
         <Card className="p-4 space-y-3">
