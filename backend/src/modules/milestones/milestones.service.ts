@@ -172,12 +172,12 @@ export class MilestonesService {
       data: { status: MilestoneStatus.COMPLETED },
     });
 
-    // After a successful payment and milestone completion, update the
+      // After a successful payment and milestone completion, update the
     // project's device shipment with any devices tied to this milestone,
     // then create a tentative site visit in the operations schedule and
     // notify the customer.
-    await this.addMilestoneDevicesToShipment(projectId, milestone);
-    await this.createOperationsVisitAndNotify(projectId, milestoneId);
+      await this.addMilestoneDevicesToShipment(projectId, milestone);
+      await this.createOperationsVisitAndNotify(projectId, milestoneId);
 
     await this.notifications.createAdminNotification({
       type: 'MILESTONE_PAID',

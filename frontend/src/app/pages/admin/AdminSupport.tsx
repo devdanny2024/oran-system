@@ -17,6 +17,8 @@ type OranUser = {
 type SupportTicket = {
   id: string;
   userId?: string | null;
+  projectId?: string | null;
+  category?: string | null;
   name: string;
   email: string;
   subject: string;
@@ -132,7 +134,8 @@ export default function AdminSupport() {
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Messages submitted via the Contact Us page. Use this view to see
-          customer questions and respond via email.
+          customer questions and respond via email. Tickets linked to a
+          project can also be viewed from the admin project detail page.
         </p>
       </div>
 
@@ -151,10 +154,14 @@ export default function AdminSupport() {
                 No support messages yet.
               </p>
             ) : (
-              tickets.map((ticket) => {
-                const isActive = activeTicket?.id === ticket.id;
-                return (
-                  <button
+                tickets.map((ticket) => {
+                  const isActive = activeTicket?.id === ticket.id;
+                  const categoryLabel =
+                    ticket.category && ticket.category !== 'GENERAL'
+                      ? ticket.category.toLowerCase()
+                      : null;
+                  return (
+                    <button
                     key={ticket.id}
                     className={`w-full text-left rounded-md px-2 py-2 text-xs border ${
                       isActive
@@ -163,9 +170,14 @@ export default function AdminSupport() {
                     }`}
                     onClick={() => setActiveTicket(ticket)}
                   >
-                    <p className="font-medium text-foreground truncate">
-                      {ticket.subject}
-                    </p>
+                      <p className="font-medium text-foreground truncate">
+                        {ticket.subject}
+                        {categoryLabel && (
+                          <span className="ml-1 text-[10px] uppercase text-muted-foreground">
+                            · {categoryLabel}
+                          </span>
+                        )}
+                      </p>
                     <p className="text-[11px] truncate">
                       {ticket.name} · {ticket.email}
                     </p>

@@ -27,7 +27,24 @@ type Project = {
   buildingType: string | null;
   roomsCount: number | null;
   createdAt: string;
+  completedAt?: string | null;
+  handoverAt?: string | null;
+  handoverNotes?: string | null;
   onboarding?: Onboarding | null;
+};
+
+type ProjectRevenueSummary = {
+  projectId: string;
+  projectName: string;
+  planType: 'MILESTONE_3' | 'EIGHTY_TEN_TEN';
+  totalAmount: number;
+  collectedAmount: number;
+  devicesCost?: number;
+  technicianCostInstall?: number;
+  technicianCostIntegration?: number;
+  taxAmount?: number;
+  grossRevenue?: number;
+  profit?: number;
 };
 
 type TripStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
@@ -109,6 +126,7 @@ export default function AdminProjectDetail() {
   const [shipmentFrom, setShipmentFrom] = useState('');
   const [shipmentTo, setShipmentTo] = useState('');
   const [shipmentNote, setShipmentNote] = useState('');
+  const [handoverNotes, setHandoverNotes] = useState('');
 
   const [technicians, setTechnicians] = useState<
     { id: string; name: string | null; email: string }[]
@@ -120,6 +138,14 @@ export default function AdminProjectDetail() {
   const [notes, setNotes] = useState('');
   const [creatingTrip, setCreatingTrip] = useState(false);
   const [reopeningTripId, setReopeningTripId] = useState<string | null>(null);
+
+  const [revenueSummary, setRevenueSummary] =
+    useState<ProjectRevenueSummary | null>(null);
+  const [revenueLoading, setRevenueLoading] = useState(false);
+
+  const projectTickets = tickets.filter(
+    (t) => t.projectId === projectId,
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -152,9 +178,9 @@ export default function AdminProjectDetail() {
   useEffect(() => {
     if (!projectId) return;
 
-    const loadProject = async () => {
-      try {
-        setLoadingProject(true);
+      const loadProject = async () => {
+        try {
+          setLoadingProject(true);
         const response = await fetch(`/api/projects/${projectId}`);
         const isJson =
           response.headers
@@ -172,17 +198,62 @@ export default function AdminProjectDetail() {
           return;
         }
 
-        setProject(body as Project);
-      } catch (error) {
+          const proj = body as Project;
+          setProject(proj);
+          if (proj.handoverNotes) {
+            setHandoverNotes(proj.handoverNotes);
+          }
+        } catch (error) {
         const message =
           error instanceof Error
             ? error.message
             : 'Unable to load project. Please try again.';
         toast.error(message);
-      } finally {
-        setLoadingProject(false);
-      }
-    };
+        } finally {
+          setLoadingProject(false);
+        }
+      };
+
+      const loadRevenueSummary = async () => {
+        try {
+          setRevenueLoading(true);
+          const res = await fetch(
+            `/api/admin/revenue/projects/${encodeURIComponent(projectId)}`,
+          );
+          const isJson =
+            res.headers
+              .get('content-type')
+              ?.toLowerCase()
+              .includes('application/json') ?? false;
+          const body = isJson ? await res.json() : await res.text();
+
+          if (!res.ok) {
+            // Soft-fail: just log via toast if needed.
+            const message =
+              typeof body === 'string'
+                ? body
+                : body?.message ?? 'Unable to load revenue summary.';
+            // Only warn in UI if there is a project; otherwise it can be noisy.
+            if (projectId) {
+              // eslint-disable-next-line no-console
+              console.warn('AdminProjectDetail revenue error:', message);
+            }
+            return;
+          }
+
+          if (body) {
+            setRevenueSummary(body as ProjectRevenueSummary);
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            'AdminProjectDetail revenue error:',
+            error instanceof Error ? error.message : String(error),
+          );
+        } finally {
+          setRevenueLoading(false);
+        }
+      };
 
     const loadTrips = async () => {
       try {
@@ -288,7 +359,8 @@ export default function AdminProjectDetail() {
       }
     };
 
-    void loadProject();
+      void loadProject();
+      void loadRevenueSummary();
     void loadTrips();
     void loadTechnicians();
     void loadDeviceShipment();
@@ -492,40 +564,136 @@ export default function AdminProjectDetail() {
           <h1 className="text-xl font-semibold text-foreground">
             {loadingProject || !project ? 'Loading project...' : project.name}
           </h1>
-          {project && (
-            <Card className="p-4 text-xs space-y-2">
-              <p className="text-sm font-semibold text-foreground">
-                Project overview
-              </p>
-              <p className="text-muted-foreground">
-                Created:{' '}
-                {new Date(project.createdAt).toLocaleString(undefined, {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
-              </p>
-              <p className="text-muted-foreground">
-                Status:{' '}
-                <span className="uppercase">
-                  {project.status.toLowerCase().replace(/_/g, ' ')}
-                </span>
-              </p>
-              <div className="flex flex-wrap gap-4 mt-2">
-                <span className="text-muted-foreground">
-                  Building type:{' '}
-                  <span className="text-foreground">
-                    {project.buildingType ?? 'Not set'}
-                  </span>
-                </span>
-                <span className="text-muted-foreground">
-                  Rooms:{' '}
-                  <span className="text-foreground">
-                    {project.roomsCount ?? 'Not set'}
-                  </span>
-                </span>
+            {project && (
+              <div className="grid gap-4 md:grid-cols-2 items-start">
+                <Card className="p-4 text-xs space-y-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    Project overview
+                  </p>
+                  <p className="text-muted-foreground">
+                    Created:{' '}
+                    {new Date(project.createdAt).toLocaleString(undefined, {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </p>
+                  {project.completedAt && (
+                    <p className="text-muted-foreground">
+                      Completed:{' '}
+                      {new Date(project.completedAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </p>
+                  )}
+                  {project.handoverAt && (
+                    <p className="text-muted-foreground">
+                      Handover:{' '}
+                      {new Date(project.handoverAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}
+                    </p>
+                  )}
+                  <p className="text-muted-foreground">
+                    Status:{' '}
+                    <span className="uppercase">
+                      {project.status.toLowerCase().replace(/_/g, ' ')}
+                    </span>
+                  </p>
+                  <div className="flex flex-wrap gap-4 mt-2">
+                    <span className="text-muted-foreground">
+                      Building type:{' '}
+                      <span className="text-foreground">
+                        {project.buildingType ?? 'Not set'}
+                      </span>
+                    </span>
+                    <span className="text-muted-foreground">
+                      Rooms:{' '}
+                      <span className="text-foreground">
+                        {project.roomsCount ?? 'Not set'}
+                      </span>
+                    </span>
+                  </div>
+                </Card>
+
+                <Card className="p-4 text-xs space-y-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    Revenue & profit
+                  </p>
+                  {revenueLoading && (
+                    <p className="text-muted-foreground">
+                      Loading revenue summary...
+                    </p>
+                  )}
+                  {!revenueLoading && !revenueSummary && (
+                    <p className="text-muted-foreground">
+                      No revenue data yet. Once milestones are generated and
+                      customers start paying, collections and profit will
+                      appear here.
+                    </p>
+                  )}
+                  {revenueSummary && (
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground">
+                        Payment plan:{' '}
+                        <span className="text-foreground">
+                          {revenueSummary.planType === 'MILESTONE_3'
+                            ? '3 milestones'
+                            : '80 / 10 / 10'}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Collected:{' '}
+                        <span className="text-foreground font-medium">
+                          ₦{revenueSummary.collectedAmount.toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Projected total:{' '}
+                        <span className="text-foreground">
+                          ₦{revenueSummary.totalAmount.toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Devices cost:{' '}
+                        <span className="text-foreground">
+                          ₦{Number(revenueSummary.devicesCost ?? 0).toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Technician cost (install + integration):{' '}
+                        <span className="text-foreground">
+                          ₦
+                          {(
+                            Number(revenueSummary.technicianCostInstall ?? 0) +
+                            Number(revenueSummary.technicianCostIntegration ?? 0)
+                          ).toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Tax:{' '}
+                        <span className="text-foreground">
+                          ₦{Number(revenueSummary.taxAmount ?? 0).toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground">
+                        Profit (collected so far):{' '}
+                        <span
+                          className={
+                            Number(revenueSummary.profit ?? 0) >= 0
+                              ? 'text-emerald-600 font-semibold'
+                              : 'text-red-600 font-semibold'
+                          }
+                        >
+                          ₦{Number(revenueSummary.profit ?? 0).toLocaleString()}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </Card>
               </div>
-            </Card>
-          )}
+            )}
         </section>
 
         <Separator />
@@ -869,6 +1037,117 @@ export default function AdminProjectDetail() {
             )}
           </Card>
         </section>
+
+          {project && (
+            <section className="space-y-3">
+              <Card className="p-4 space-y-3 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Handover notes
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Internal notes about final walkthrough, punch-list items and
+                      handover. Visible only to admins.
+                    </p>
+                  </div>
+                </div>
+                <textarea
+                  className="w-full border rounded px-2 py-1 min-h-[80px]"
+                  value={handoverNotes}
+                  onChange={(event) => setHandoverNotes(event.target.value)}
+                  placeholder="Add any final notes about completion and handover for this project."
+                />
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(
+                          `/api/admin/projects/${projectId}/handover-notes`,
+                          {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ handoverNotes }),
+                          },
+                        );
+
+                        const isJson =
+                          res.headers
+                            .get('content-type')
+                            ?.toLowerCase()
+                            .includes('application/json') ?? false;
+                        const body = isJson ? await res.json() : await res.text();
+
+                        if (!res.ok) {
+                          const message =
+                            typeof body === 'string'
+                              ? body
+                              : body?.message ?? 'Unable to save handover notes.';
+                          toast.error(message);
+                          return;
+                        }
+
+                        toast.success('Handover notes saved.');
+                      } catch (error) {
+                        const message =
+                          error instanceof Error
+                            ? error.message
+                            : 'Unable to save handover notes. Please try again.';
+                        toast.error(message);
+                      }
+                    }}
+                  >
+                    Save handover notes
+                  </Button>
+                </div>
+              </Card>
+
+              {projectTickets.length > 0 && (
+                <Card className="p-4 space-y-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Support tickets for this project
+                    </h2>
+                    <span className="text-[11px] text-muted-foreground">
+                      {projectTickets.length} ticket
+                      {projectTickets.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Tickets raised from the customer Support page that reference
+                    this project. Use the main Support inbox to reply.
+                  </p>
+                  <div className="border rounded-md divide-y">
+                    {projectTickets.map((t) => (
+                      <div key={t.id} className="px-3 py-2 flex flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-foreground truncate">
+                            {t.subject}
+                          </p>
+                          <span className="text-[10px] uppercase text-muted-foreground">
+                            {t.status.toLowerCase().replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {t.name} · {t.email}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(t.createdAt).toLocaleString('en-NG', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </section>
+          )}
       </main>
     </div>
   );

@@ -5,9 +5,16 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { EmailModule } from '../../infrastructure/email/email.module';
 import { MilestonesModule } from '../milestones/milestones.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ProjectsModule } from '../projects/projects.module';
 
 @Module({
-  imports: [PrismaModule, EmailModule, MilestonesModule, NotificationsModule],
+  imports: [
+    PrismaModule,
+    EmailModule,
+    MilestonesModule,
+    NotificationsModule,
+    ProjectsModule,
+  ],
   controllers: [OperationsController],
   providers: [OperationsService],
 })

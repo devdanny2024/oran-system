@@ -13,6 +13,8 @@ export class SupportService {
 
   async createTicket(params: {
     userId?: string | null;
+    projectId?: string | null;
+    category?: string | null;
     name: string;
     email: string;
     subject: string;
@@ -21,6 +23,8 @@ export class SupportService {
     const ticket = await this.prisma.supportTicket.create({
       data: {
         userId: params.userId ?? null,
+        projectId: params.projectId ?? null,
+        category: params.category ?? null,
         name: params.name,
         email: params.email,
         subject: params.subject,

@@ -61,6 +61,7 @@ export default function AdminDashboard() {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
+  const [showCompletedOnly, setShowCompletedOnly] = useState(false);
 
   const [revenueLoading, setRevenueLoading] = useState(false);
   const [totalCollected, setTotalCollected] = useState(0);
@@ -264,6 +265,9 @@ export default function AdminDashboard() {
   const totalProjects = projects.length;
   const onboardingProjects = projects.filter(
     (p) => p.status === 'ONBOARDING',
+  ).length;
+  const completedProjects = projects.filter(
+    (p) => p.status === 'COMPLETED',
   ).length;
 
   if (checking || !user) {

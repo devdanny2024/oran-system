@@ -38,6 +38,8 @@ type Project = {
   buildingType: string | null;
   roomsCount: number | null;
   createdAt: string;
+  completedAt?: string | null;
+  handoverAt?: string | null;
   onboarding?: Onboarding | null;
 };
 
@@ -596,14 +598,18 @@ export default function ProjectDetailPage() {
   }
 
   const createdDate = new Date(project.createdAt).toLocaleString();
+  const completedDate =
+    project.completedAt != null ? new Date(project.completedAt).toLocaleString() : null;
+  const handoverDate =
+    project.handoverAt != null ? new Date(project.handoverAt).toLocaleString() : null;
   const onboarding = project.onboarding ?? undefined;
   const features =
     (onboarding?.selectedFeatures as string[] | undefined) ?? undefined;
   const allDocumentsAccepted =
-    agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
-  const hasSelectedQuote = quotes.some((q) => q.isSelected);
+      agreements.length > 0 && agreements.every((a) => !!a.acceptedAt);
+    const hasSelectedQuote = quotes.some((q) => q.isSelected);
   const nextPayableMilestone =
-    milestones.find((m) => m.status === 'PENDING') ?? null;
+      milestones.find((m) => m.status === 'PENDING') ?? null;
   const effectivePaymentPlanSelection =
     (paymentPlanSelection || paymentPlan?.type || '') as
       | 'MILESTONE_3'
@@ -625,14 +631,105 @@ export default function ProjectDetailPage() {
   const showDocumentsCard =
     isDocumentsStageStatus || hasSelectedQuote || agreements.length > 0;
   const documentsNeedAttention = showDocumentsCard && !allDocumentsAccepted;
-  const showPaymentPlanCard =
-    allDocumentsAccepted ||
-    project.status === 'DOCUMENTS_SIGNED' ||
-    project.status === 'PAYMENT_PLAN_SELECTED' ||
-    project.status === 'IN_PROGRESS' ||
-    project.status === 'COMPLETED';
-  const paymentPlanNeedsAttention =
-    showPaymentPlanCard && !effectivePaymentPlanSelection;
+    const showPaymentPlanCard =
+      allDocumentsAccepted ||
+      project.status === 'DOCUMENTS_SIGNED' ||
+      project.status === 'PAYMENT_PLAN_SELECTED' ||
+      project.status === 'IN_PROGRESS' ||
+      project.status === 'COMPLETED';
+    const paymentPlanNeedsAttention =
+      showPaymentPlanCard && !effectivePaymentPlanSelection;
+
+    type TimelineStep = {
+      id: string;
+      label: string;
+      dateLabel?: string | null;
+      status: 'done' | 'current' | 'upcoming';
+    };
+
+    const timelineSteps: TimelineStep[] = (() => {
+      const steps: TimelineStep[] = [];
+
+      steps.push({
+        id: 'created',
+        label: 'Project created',
+        dateLabel: createdDate,
+        status: 'done',
+      });
+
+      const onboardingDone = project.status !== 'ONBOARDING';
+      steps.push({
+        id: 'onboarding',
+        label: 'Onboarding details captured',
+        dateLabel: onboardingDone ? createdDate : null,
+        status: onboardingDone ? 'done' : 'current',
+      });
+
+      const inspectionStatuses: ProjectStatus[] = [
+        'INSPECTION_REQUESTED',
+        'INSPECTION_SCHEDULED',
+        'INSPECTION_COMPLETED',
+      ];
+      const inInspection = inspectionStatuses.includes(project.status);
+      const inspectionCompleted = project.status === 'INSPECTION_COMPLETED';
+      steps.push({
+        id: 'inspection',
+        label: 'Site inspection & assessment',
+        status: inspectionCompleted ? 'done' : inInspection ? 'current' : 'upcoming',
+      });
+
+      const quoteSelectedStatus =
+        project.status === 'QUOTE_SELECTED' ||
+        project.status === 'DOCUMENTS_PENDING' ||
+        project.status === 'DOCUMENTS_SIGNED' ||
+        project.status === 'PAYMENT_PLAN_SELECTED' ||
+        project.status === 'IN_PROGRESS' ||
+        project.status === 'COMPLETED';
+      steps.push({
+        id: 'quote',
+        label: 'Quote selected',
+        status: quoteSelectedStatus ? 'done' : 'upcoming',
+      });
+
+      const documentsSignedStatus =
+        project.status === 'DOCUMENTS_SIGNED' ||
+        project.status === 'PAYMENT_PLAN_SELECTED' ||
+        project.status === 'IN_PROGRESS' ||
+        project.status === 'COMPLETED';
+      steps.push({
+        id: 'documents',
+        label: 'Documents accepted',
+        status: documentsSignedStatus ? 'done' : 'upcoming',
+      });
+
+      const paymentPlanChosenStatus =
+        project.status === 'PAYMENT_PLAN_SELECTED' ||
+        project.status === 'IN_PROGRESS' ||
+        project.status === 'COMPLETED';
+      steps.push({
+        id: 'plan',
+        label: 'Payment plan chosen',
+        status: paymentPlanChosenStatus ? 'done' : 'upcoming',
+      });
+
+      const anyMilestoneCompleted = milestones.some(
+        (m) => m.status === 'COMPLETED',
+      );
+      steps.push({
+        id: 'operations',
+        label: 'Operations & on-site work',
+        status: anyMilestoneCompleted ? 'done' : 'upcoming',
+      });
+
+      steps.push({
+        id: 'handover',
+        label: 'Project completed & handed over',
+        dateLabel: handoverDate ?? completedDate,
+        status: project.status === 'COMPLETED' ? 'done' : 'upcoming',
+      });
+
+      return steps;
+    })();
 
   const nextStepForCard:
     | {
@@ -916,21 +1013,84 @@ export default function ProjectDetailPage() {
         </Card>
       )}
 
-      <Card id="project-details-section" className="p-4 space-y-3">
-        <h2 className="text-sm font-semibold">Project details</h2>
-        <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-          <div>
-            <p className="font-medium text-foreground">Building type</p>
-            <p>{project.buildingType || 'Not specified yet'}</p>
+        <Card id="project-details-section" className="p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Project details</h2>
+          <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+            <div>
+              <p className="font-medium text-foreground">Building type</p>
+              <p>{project.buildingType || 'Not specified yet'}</p>
+            </div>
+            <div>
+              <p className="font-medium text-foreground">Rooms</p>
+              <p>{project.roomsCount ?? 'Not specified yet'}</p>
+            </div>
+            <div>
+              <p className="font-medium text-foreground">Created</p>
+              <p>{createdDate}</p>
+            </div>
+            {completedDate && (
+              <div>
+                <p className="font-medium text-foreground">Project completed</p>
+                <p>{completedDate}</p>
+              </div>
+            )}
+              {handoverDate && (
+                <div>
+                  <p className="font-medium text-foreground">Handover</p>
+                  <p>{handoverDate}</p>
+                </div>
+              )}
           </div>
-          <div>
-            <p className="font-medium text-foreground">Rooms</p>
-            <p>{project.roomsCount ?? 'Not specified yet'}</p>
-          </div>
-        </div>
-      </Card>
+        </Card>
 
-      <Card id="project-quotes-section" className="p-4 space-y-3">
+        <Card className="p-4 space-y-3">
+          <h2 className="text-sm font-semibold">Project timeline</h2>
+          <p className="text-xs text-muted-foreground">
+            High-level view of where this project is in the ORAN journey, from onboarding through inspection, quotes,
+            documents, payments, operations and final handover.
+          </p>
+          <div className="relative pl-3 border-l border-border space-y-3 text-xs">
+            {timelineSteps.map((step, index) => {
+              const isLast = index === timelineSteps.length - 1;
+              const dotColor =
+                step.status === 'done'
+                  ? 'bg-emerald-500'
+                  : step.status === 'current'
+                    ? 'bg-primary'
+                    : 'bg-muted-foreground';
+              const textColor =
+                step.status === 'done'
+                  ? 'text-foreground'
+                  : step.status === 'current'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground';
+
+              return (
+                <div key={step.id} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`w-2 h-2 rounded-full ${dotColor}`}
+                    />
+                    {!isLast && (
+                      <div className="flex-1 w-px bg-border mt-1" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className={`font-medium ${textColor}`}>{step.label}</p>
+                    {step.dateLabel && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {step.dateLabel}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Duplicate quotes card (deprecated, kept for reference)
+        <Card id="project-quotes-section" className="p-4 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Quotes for this project</h2>
           <span className="text-xs text-muted-foreground">
@@ -1034,9 +1194,10 @@ export default function ProjectDetailPage() {
                 </Button>
               </div>
             ))}
-          </div>
-        )}
-      </Card>
+            </div>
+          )}
+        </Card>
+        */}
 
 
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer from 'nodemailer';
 
@@ -10,6 +10,7 @@ interface SendEmailOptions {
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
   private readonly transporter: nodemailer.Transporter | null;
   private readonly fromAddress: string;
   private readonly frontendBaseUrl: string;
@@ -38,9 +39,8 @@ export class EmailService {
         },
       });
     } else {
-      // eslint-disable-next-line no-console
-      console.warn(
-        'EmailService: SMTP not fully configured; emails will be logged instead of sent.',
+      this.logger.warn(
+        'SMTP not fully configured; emails will be logged instead of sent.',
       );
       this.transporter = null;
     }
@@ -52,15 +52,16 @@ export class EmailService {
 
   private async sendEmail(options: SendEmailOptions) {
     if (!this.transporter) {
-      // eslint-disable-next-line no-console
-      console.log('[EmailService] Mock email (no SMTP configured):', {
-        from: this.fromAddress,
-        ...options,
-      });
+      this.logger.log(
+        `Mock email (no SMTP): to=${options.to}, subject="${options.subject}"`,
+      );
       return;
     }
 
     try {
+      this.logger.log(
+        `Sending email via SMTP: to=${options.to}, subject="${options.subject}"`,
+      );
       await this.transporter.sendMail({
         from: this.fromAddress,
         to: options.to,
@@ -69,12 +70,9 @@ export class EmailService {
       });
     } catch (error) {
       // Do not crash user-facing flows if email delivery fails.
-      // eslint-disable-next-line no-console
-      console.error('[EmailService] Failed to send email', {
-        error,
-        to: options.to,
-        subject: options.subject,
-      });
+      this.logger.error(
+        `Failed to send email: to=${options.to}, subject="${options.subject}", error=${(error as Error).message}`,
+      );
     }
   }
 
@@ -171,6 +169,10 @@ export class EmailService {
       hour12: true,
     });
 
+    this.logger.log(
+      `Preparing operations schedule email for project="${params.projectName}", to=${params.to}, scheduledFor=${when}`,
+    );
+
     const html = this.buildBaseTemplate({
       title: 'Your ORAN installation is now in operations',
       intro: `Hi ${greetingName}, your payment has been received and your project is moving into the operations phase.`,
@@ -192,6 +194,47 @@ export class EmailService {
     await this.sendEmail({
       to: params.to,
       subject: 'ORAN operations schedule created for your project',
+      html,
+    });
+  }
+
+  async sendProjectCompletedEmail(params: {
+    to: string;
+    name?: string | null;
+    projectName: string;
+    handoverAt: Date;
+  }) {
+    const greetingName = params.name?.trim() || 'there';
+
+    const when = params.handoverAt.toLocaleString('en-NG', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    this.logger.log(
+      `Preparing project completed email for project="${params.projectName}", to=${params.to}, handoverAt=${when}`,
+    );
+
+    const html = this.buildBaseTemplate({
+      title: 'Your ORAN project has been completed',
+      intro: `Hi ${greetingName}, your ORAN smart home project has been completed and handed over.`,
+      bodyLines: [
+        `Project: <strong>${params.projectName}</strong>`,
+        `Final handover: <strong>${when}</strong>`,
+        'Our team has completed installation, testing and walkthrough. If you notice any issues or have follow-up questions, please reach out and we will be happy to help.',
+      ],
+      footer:
+        'Thank you for trusting ORAN with your smart home project. Remember that you can always contact support from your dashboard if you need anything.',
+    });
+
+    await this.sendEmail({
+      to: params.to,
+      subject: 'ORAN project completed and handed over',
       html,
     });
   }
@@ -301,6 +344,10 @@ export class EmailService {
       minute: '2-digit',
       hour12: true,
     });
+
+    this.logger.log(
+      `Preparing inspection scheduled email for project="${params.projectName}", to=${params.to}, scheduledFor=${when}`,
+    );
 
     const html = this.buildBaseTemplate({
       title: 'Your ORAN site inspection has been scheduled',

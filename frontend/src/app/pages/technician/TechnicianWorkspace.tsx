@@ -233,11 +233,18 @@ export default function TechnicianWorkspace() {
   }
 
   const activeTrip =
-    activeTripId != null
-      ? upcomingTrips.find((trip) => trip.id === activeTripId) ??
-        trips.find((trip) => trip.id === activeTripId) ??
-        null
-      : null;
+      activeTripId != null
+        ? upcomingTrips.find((trip) => trip.id === activeTripId) ??
+          trips.find((trip) => trip.id === activeTripId) ??
+          null
+        : null;
+
+    const activeTripTasks = Array.isArray(activeTrip?.tasks)
+      ? activeTrip!.tasks
+      : [];
+    const totalTasks = activeTripTasks.length;
+    const completedTasks = activeTripTasks.filter((t) => t.isDone).length;
+    const allTasksDone = totalTasks > 0 && completedTasks === totalTasks;
 
   return (
     <div className="min-h-screen bg-background">
@@ -412,17 +419,34 @@ export default function TechnicianWorkspace() {
                             {updatingTripId === trip.id ? 'Checking in...' : 'Check in'}
                           </Button>
                         )}
-                        {trip.status === 'IN_PROGRESS' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-[11px] h-7"
-                            disabled={updatingTripId === trip.id}
-                            onClick={async () => {
-                              try {
-                                setUpdatingTripId(trip.id);
-                                const response = await fetch(
-                                  `/api/operations/trips/${trip.id}/check-out`,
+                          {trip.status === 'IN_PROGRESS' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-[11px] h-7"
+                              disabled={updatingTripId === trip.id}
+                              onClick={async () => {
+                                try {
+                                  // Soft guard: if there are open checklist items
+                                  // on the currently active trip, ask for confirmation
+                                  // before checking out.
+                                  if (
+                                    activeTrip &&
+                                    activeTrip.id === trip.id &&
+                                    Array.isArray(activeTrip.tasks) &&
+                                    activeTrip.tasks.some((t) => !t.isDone)
+                                  ) {
+                                    const proceed = window.confirm(
+                                      'Some tasks are still open for this visit. Are you sure you want to check out?',
+                                    );
+                                    if (!proceed) {
+                                      return;
+                                    }
+                                  }
+
+                                  setUpdatingTripId(trip.id);
+                                  const response = await fetch(
+                                    `/api/operations/trips/${trip.id}/check-out`,
                                   { method: 'PATCH' },
                                 );
                                 const isJson =
@@ -605,21 +629,26 @@ export default function TechnicianWorkspace() {
                     </Button>
                   </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground md:text-right">
-                  {activeTrip.checkInAt && (
-                    <p>
-                      Checked in:{' '}
-                      {new Date(activeTrip.checkInAt).toLocaleString()}
-                    </p>
-                  )}
-                  {activeTrip.checkOutAt && (
-                    <p>
-                      Checked out:{' '}
-                      {new Date(activeTrip.checkOutAt).toLocaleString()}
-                    </p>
-                  )}
+                  <div className="text-[11px] text-muted-foreground md:text-right">
+                    {activeTrip.checkInAt && (
+                      <p>
+                        Checked in:{' '}
+                        {new Date(activeTrip.checkInAt).toLocaleString()}
+                      </p>
+                    )}
+                    {activeTrip.checkOutAt && (
+                      <p>
+                        Checked out:{' '}
+                        {new Date(activeTrip.checkOutAt).toLocaleString()}
+                      </p>
+                    )}
+                    {totalTasks > 0 && (
+                      <p className="mt-1">
+                        Checklist: {completedTasks} / {totalTasks} items done
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
               {Array.isArray(activeTrip.tasks) &&
                 activeTrip.tasks.length > 0 && (

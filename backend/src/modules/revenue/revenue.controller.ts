@@ -9,5 +9,9 @@ export class RevenueController {
   getOverview() {
     return this.revenue.overview();
   }
-}
 
+  @Get('projects/:id')
+  getProjectSummary(id: string) {
+    return this.revenue.projectSummary(id);
+  }
+}

@@ -80,6 +80,8 @@ export default function SupportPage() {
 
     const payload = {
       userId: user?.id ?? null,
+      projectId: category === 'PROJECT' && projectId.trim() ? projectId.trim() : null,
+      category,
       name: user?.name || 'ORAN customer',
       email: user?.email || '',
       subject: prefixedSubject,
@@ -201,4 +203,3 @@ export default function SupportPage() {
     </div>
   );
 }
-

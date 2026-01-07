@@ -3,7 +3,12 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { InviteTechnicianDto } from './dto/invite-technician.dto';
 import { RevokeTechnicianDto } from './dto/revoke-technician.dto';
-import { TripStatus, UserRole, MilestoneStatus, PriceTier } from '@prisma/client';
+import {
+  TripStatus,
+  UserRole,
+  MilestoneStatus,
+  PriceTier,
+} from '@prisma/client';
 import { EmailService } from '../../infrastructure/email/email.service';
 import * as bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -13,6 +18,7 @@ import {
   QuoteFeeConfig,
 } from '../../domain/pricing/quote-fees';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ProjectsService } from '../projects/projects.service';
 
 @Injectable()
 export class OperationsService {
@@ -21,6 +27,7 @@ export class OperationsService {
     private readonly emailService: EmailService,
     private readonly milestones: MilestonesService,
     private readonly notifications: NotificationsService,
+    private readonly projects: ProjectsService,
   ) {}
 
   async createTrip(payload: CreateTripDto) {
@@ -151,16 +158,16 @@ export class OperationsService {
           project.id,
         )}`;
 
-        await this.emailService.sendInspectionScheduledEmail({
-          to: project.user.email,
-          name: project.user.name ?? undefined,
-          projectName: project.name,
-          siteAddress: project.onboarding?.siteAddress ?? 'Not provided',
-          scheduledFor,
-          projectUrl,
-        });
-      }
-    } else if (project.user) {
+          await this.emailService.sendInspectionScheduledEmail({
+            to: project.user.email,
+            name: project.user.name ?? undefined,
+            projectName: project.name,
+            siteAddress: project.onboarding?.siteAddress ?? 'Not provided',
+            scheduledFor,
+            projectUrl,
+          });
+        }
+      } else if (project.user) {
       // For non-inspection trips (e.g. operations / installation visits),
       // send the standard operations schedule email so customers always
       // get a notification when a trip is created from the admin side.
@@ -171,15 +178,15 @@ export class OperationsService {
       const siteAddress =
         project.onboarding?.siteAddress ?? 'Not provided';
 
-      await this.emailService.sendOperationsScheduleEmail({
-        to: project.user.email,
-        name: project.user.name ?? undefined,
-        projectName: project.name,
-        siteAddress,
-        scheduledFor,
-        operationsUrl,
-      });
-    }
+        await this.emailService.sendOperationsScheduleEmail({
+          to: project.user.email,
+          name: project.user.name ?? undefined,
+          projectName: project.name,
+          siteAddress,
+          scheduledFor,
+          operationsUrl,
+        });
+      }
 
     await this.notifications.createAdminNotification({
       type: 'TRIP_SCHEDULED',
@@ -217,20 +224,94 @@ export class OperationsService {
   }
 
   async listTechnicians() {
-    const technicians = await this.prisma.user.findMany({
-      where: { role: UserRole.TECHNICIAN },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        resetPasswordToken: true,
-        resetPasswordExpires: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+      const technicians = await this.prisma.user.findMany({
+        where: { role: UserRole.TECHNICIAN },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          resetPasswordToken: true,
+          resetPasswordExpires: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      });
 
-    return { items: technicians };
-  }
+      const trips = await this.prisma.trip.findMany({
+        where: {
+          technicianId: { in: technicians.map((t) => t.id) },
+        },
+        select: {
+          technicianId: true,
+          projectId: true,
+          status: true,
+          scheduledFor: true,
+        },
+      });
+
+      const byTechnician = new Map<
+        string,
+        {
+          activeProjectIds: Set<string>;
+          upcomingTrips: number;
+          completedTrips: number;
+        }
+      >();
+
+      for (const tech of technicians) {
+        byTechnician.set(tech.id, {
+          activeProjectIds: new Set<string>(),
+          upcomingTrips: 0,
+          completedTrips: 0,
+        });
+      }
+
+      for (const trip of trips) {
+        if (!trip.technicianId) continue;
+        const entry = byTechnician.get(trip.technicianId);
+        if (!entry) continue;
+
+        const isActiveStatus =
+          trip.status === TripStatus.SCHEDULED ||
+          trip.status === TripStatus.IN_PROGRESS;
+
+        if (isActiveStatus && trip.projectId) {
+          entry.activeProjectIds.add(trip.projectId);
+        }
+
+        if (trip.status === TripStatus.SCHEDULED) {
+          entry.upcomingTrips += 1;
+        } else if (trip.status === TripStatus.COMPLETED) {
+          entry.completedTrips += 1;
+        }
+      }
+
+      const items = technicians.map((tech) => {
+        const stats = byTechnician.get(tech.id);
+        const activeProjects = stats
+          ? stats.activeProjectIds.size
+          : 0;
+        const upcomingTrips = stats ? stats.upcomingTrips : 0;
+        const completedTrips = stats ? stats.completedTrips : 0;
+
+        const loadScore = activeProjects + upcomingTrips;
+        const isAtCapacity = loadScore >= 5;
+
+        return {
+          id: tech.id,
+          name: tech.name,
+          email: tech.email,
+          resetPasswordToken: tech.resetPasswordToken,
+          resetPasswordExpires: tech.resetPasswordExpires,
+          activeProjects,
+          upcomingTrips,
+          completedTrips,
+          isAtCapacity,
+        };
+      });
+  
+      return { items };
+    }
 
   async inviteTechnician(payload: InviteTechnicianDto) {
     const email = payload.email.trim().toLowerCase();
@@ -339,15 +420,19 @@ export class OperationsService {
     // marked as completed as well. This is idempotent with the payment
     // verification flow which already completes the milestone when the
     // Paystack transaction succeeds.
-    if (updated.milestoneId) {
-      await this.milestones.updateStatus(
-        updated.projectId,
-        updated.milestoneId,
-        MilestoneStatus.COMPLETED,
-      );
-    }
+      if (updated.milestoneId) {
+        await this.milestones.updateStatus(
+          updated.projectId,
+          updated.milestoneId,
+          MilestoneStatus.COMPLETED,
+        );
+      }
 
-    return updated;
+      // After a trip is fully completed (check-out), re-evaluate whether
+      // the project as a whole can now be considered completed / handed over.
+      await this.projects.refreshCompletionStatus(updated.projectId);
+
+      return updated;
   }
 
   async rescheduleTrip(tripId: string, scheduledFor: Date) {

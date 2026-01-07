@@ -10,6 +10,8 @@ export class SupportController {
     @Body()
     body: {
       userId?: string | null;
+      projectId?: string | null;
+      category?: string | null;
       name?: string;
       email?: string;
       subject?: string;
@@ -29,6 +31,8 @@ export class SupportController {
 
     const ticket = await this.support.createTicket({
       userId: body.userId ?? null,
+      projectId: body.projectId ?? null,
+      category: body.category ?? null,
       name,
       email,
       subject,
@@ -38,4 +42,3 @@ export class SupportController {
     return { ticket };
   }
 }
-

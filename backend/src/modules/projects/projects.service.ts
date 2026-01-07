@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { MilestoneStatus, ProjectStatus, TripStatus } from '@prisma/client';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { EmailService } from '../../infrastructure/email/email.service';
@@ -56,6 +57,94 @@ export class ProjectsService {
     }
 
     return project;
+  }
+
+  /**
+   * Refreshes the derived completion / handover status for a project.
+   * A project is considered completed and handed over when:
+   * - All milestones are COMPLETED, and
+   * - There is at least one COMPLETED trip, and
+   * - There are no SCHEDULED or IN_PROGRESS trips remaining.
+   *
+   * When these conditions are met, the project status is set to COMPLETED
+   * (if not already), and completedAt / handoverAt timestamps are recorded.
+   * An admin notification and customer email are sent once, the first time
+   * the project crosses into this completed state.
+   */
+  async refreshCompletionStatus(projectId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        user: true,
+        milestones: true,
+        trips: true,
+      },
+    });
+
+    if (!project || !project.user) {
+      return;
+    }
+
+    const milestones = project.milestones ?? [];
+    const trips = project.trips ?? [];
+
+    const hasMilestones = milestones.length > 0;
+    const allMilestonesCompleted =
+      hasMilestones &&
+      milestones.every((m) => m.status === MilestoneStatus.COMPLETED);
+
+    const anyActiveTrips = trips.some(
+      (t) =>
+        t.status === TripStatus.SCHEDULED ||
+        t.status === TripStatus.IN_PROGRESS,
+    );
+
+    const completedTrips = trips.filter(
+      (t) => t.status === TripStatus.COMPLETED,
+    );
+
+    if (!allMilestonesCompleted || anyActiveTrips || completedTrips.length === 0) {
+      // Conditions for completion / handover are not yet met.
+      return;
+    }
+
+    // Use the most recent completed trip as the default handover moment.
+    completedTrips.sort((a, b) => {
+      const aTime = a.checkOutAt ?? a.scheduledFor;
+      const bTime = b.checkOutAt ?? b.scheduledFor;
+      return aTime.getTime() - bTime.getTime();
+    });
+    const lastTrip = completedTrips[completedTrips.length - 1];
+
+    const alreadyCompleted = project.status === ProjectStatus.COMPLETED;
+    const newCompletedAt = project.completedAt ?? new Date();
+    const newHandoverAt = project.handoverAt ?? lastTrip.checkOutAt ?? new Date();
+
+    const updated = await this.prisma.project.update({
+      where: { id: projectId },
+      data: {
+        status: ProjectStatus.COMPLETED,
+        completedAt: newCompletedAt,
+        handoverAt: newHandoverAt,
+      },
+    });
+
+    // Only send notifications the first time the project is marked completed.
+    if (!alreadyCompleted) {
+      await this.notifications.createAdminNotification({
+        type: 'PROJECT_COMPLETED',
+        title: 'Project completed and handed over',
+        message: `Project ${updated.name} (${updated.id}) has been completed and handed over to the customer.`,
+        sendEmail: true,
+      });
+
+      await this.email.sendProjectCompletedEmail?.({
+        to: project.user.email,
+        name: project.user.name,
+        projectName: project.name,
+        handoverAt: newHandoverAt,
+      } as any);
+    }
   }
 
   async getDeviceShipment(projectId: string) {

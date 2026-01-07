@@ -156,4 +156,15 @@ export class RevenueService {
       perProject,
     };
   }
+
+  async projectSummary(projectId: string) {
+    const overview = await this.overview();
+    const match = overview.perProject.find(
+      (p) => p.projectId === projectId,
+    );
+    if (!match) {
+      return null;
+    }
+    return match;
+  }
 }

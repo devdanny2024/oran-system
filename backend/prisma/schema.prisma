@@ -40,6 +40,9 @@ model Project {
   paymentPlan PaymentPlan?       @relation("ProjectPaymentPlan")
   milestones  ProjectMilestone[] @relation("ProjectMilestones")
   deviceShipment ProjectDeviceShipment?
+  completedAt DateTime?
+  handoverAt  DateTime?
+  handoverNotes String?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
@@ -285,12 +288,14 @@ model BillingInvoice {
 }
 
 model SupportTicket {
-  id        String        @id @default(cuid())
-  userId    String?
-  name      String
-  email     String
-  subject   String
-  message   String
+    id        String        @id @default(cuid())
+    userId    String?
+    projectId String?
+    category  String?
+    name      String
+    email     String
+    subject   String
+    message   String
   status    SupportStatus @default(OPEN)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt

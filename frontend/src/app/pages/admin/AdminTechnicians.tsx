@@ -16,6 +16,10 @@ type Technician = {
   email: string;
   resetPasswordToken?: string | null;
   resetPasswordExpires?: string | null;
+  activeProjects?: number;
+  upcomingTrips?: number;
+  completedTrips?: number;
+  isAtCapacity?: boolean;
 };
 
 const ALLOWED_ROLES = ['ADMIN'];
@@ -226,6 +230,88 @@ export default function AdminTechnicians() {
               {inviteLoading ? 'Sending...' : 'Send invite'}
             </Button>
           </div>
+        </Card>
+
+        <Card className="p-4 space-y-3">
+          <p className="text-sm font-semibold text-foreground">
+            Capacity overview
+          </p>
+          <p className="text-xs text-muted-foreground">
+            High-level view of how many active projects and upcoming trips each technician has. This helps you avoid
+            over-allocating work.
+          </p>
+          {loading ? (
+            <p className="text-xs text-muted-foreground">Loading technicians...</p>
+          ) : technicians.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No technicians found yet. Once you invite technicians and start creating trips, their workload will appear
+              here.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="border-b text-[11px] text-muted-foreground">
+                    <th className="text-left py-2 pr-3 font-medium">Technician</th>
+                    <th className="text-left py-2 pr-3 font-medium">Active projects</th>
+                    <th className="text-left py-2 pr-3 font-medium">Upcoming trips</th>
+                    <th className="text-left py-2 pr-3 font-medium">Completed trips</th>
+                    <th className="text-left py-2 pr-3 font-medium">Load</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {technicians.map((tech) => {
+                    const active = tech.activeProjects ?? 0;
+                    const upcoming = tech.upcomingTrips ?? 0;
+                    const completed = tech.completedTrips ?? 0;
+                    const loadScore = active + upcoming;
+                    const atCapacity = tech.isAtCapacity ?? loadScore >= 5;
+                    return (
+                      <tr
+                        key={tech.id}
+                        className="border-b last:border-b-0 hover:bg-muted/40"
+                      >
+                        <td className="py-2 pr-3">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">
+                              {tech.name || 'Unnamed technician'}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {tech.email}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2 pr-3">
+                          {active}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {upcoming}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {completed}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {atCapacity ? (
+                            <span className="text-[11px] font-semibold text-red-600">
+                              At capacity
+                            </span>
+                          ) : loadScore >= 3 ? (
+                            <span className="text-[11px] font-semibold text-amber-600">
+                              Busy
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-emerald-600">
+                              Available
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
 
         <Card className="p-4">
