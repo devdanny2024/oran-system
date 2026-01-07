@@ -143,10 +143,6 @@ export default function AdminProjectDetail() {
     useState<ProjectRevenueSummary | null>(null);
   const [revenueLoading, setRevenueLoading] = useState(false);
 
-  const projectTickets = tickets.filter(
-    (t) => t.projectId === projectId,
-  );
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -1102,50 +1098,6 @@ export default function AdminProjectDetail() {
                   </Button>
                 </div>
               </Card>
-
-              {projectTickets.length > 0 && (
-                <Card className="p-4 space-y-3 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Support tickets for this project
-                    </h2>
-                    <span className="text-[11px] text-muted-foreground">
-                      {projectTickets.length} ticket
-                      {projectTickets.length === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Tickets raised from the customer Support page that reference
-                    this project. Use the main Support inbox to reply.
-                  </p>
-                  <div className="border rounded-md divide-y">
-                    {projectTickets.map((t) => (
-                      <div key={t.id} className="px-3 py-2 flex flex-col gap-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-medium text-foreground truncate">
-                            {t.subject}
-                          </p>
-                          <span className="text-[10px] uppercase text-muted-foreground">
-                            {t.status.toLowerCase().replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {t.name} · {t.email}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {new Date(t.createdAt).toLocaleString('en-NG', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
             </section>
           )}
       </main>
