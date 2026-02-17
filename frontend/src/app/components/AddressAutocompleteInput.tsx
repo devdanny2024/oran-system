@@ -18,6 +18,7 @@ export default function AddressAutocompleteInput({
 }: Props) {
   const [items, setItems] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const boxRef = useRef<HTMLDivElement | null>(null);
 
@@ -25,12 +26,15 @@ export default function AddressAutocompleteInput({
     const input = value.trim();
     const timer = setTimeout(async () => {
       if (input.length < 3) {
+        setLoading(false);
         setItems([]);
         setOpen(false);
         setActiveIndex(-1);
         return;
       }
 
+      setLoading(true);
+      setOpen(true);
       try {
         const res = await fetch(
           `/api/pricing/address-suggestions?input=${encodeURIComponent(input)}`,
@@ -38,12 +42,14 @@ export default function AddressAutocompleteInput({
         const body = (await res.json()) as { items?: string[] };
         const list = Array.isArray(body?.items) ? body.items : [];
         setItems(list);
-        setOpen(list.length > 0);
+        setOpen(true);
         setActiveIndex(-1);
       } catch {
         setItems([]);
-        setOpen(false);
+        setOpen(true);
         setActiveIndex(-1);
+      } finally {
+        setLoading(false);
       }
     }, 220);
 
@@ -62,7 +68,7 @@ export default function AddressAutocompleteInput({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  const canOpen = useMemo(() => open && items.length > 0, [open, items.length]);
+  const canOpen = useMemo(() => open && (loading || items.length > 0), [open, loading, items.length]);
 
   return (
     <div className="relative" ref={boxRef}>
@@ -75,7 +81,7 @@ export default function AddressAutocompleteInput({
         }}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if (!canOpen) return;
+          if (!canOpen || loading || items.length === 0) return;
 
           if (event.key === 'ArrowDown') {
             event.preventDefault();
@@ -99,23 +105,29 @@ export default function AddressAutocompleteInput({
 
       {canOpen && (
         <div className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-background shadow-md">
-          {items.map((item, index) => (
-            <button
-              key={`${item}-${index}`}
-              type="button"
-              className={`w-full px-3 py-2 text-left text-xs hover:bg-muted ${
-                index === activeIndex ? 'bg-muted' : ''
-              }`}
-              onMouseDown={(event) => {
-                event.preventDefault();
-                onChange(item);
-                setOpen(false);
-                setActiveIndex(-1);
-              }}
-            >
-              {item}
-            </button>
-          ))}
+          {loading ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground">Loading addresses...</div>
+          ) : items.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground">No matches found.</div>
+          ) : (
+            items.map((item, index) => (
+              <button
+                key={`${item}-${index}`}
+                type="button"
+                className={`w-full px-3 py-2 text-left text-xs hover:bg-muted ${
+                  index === activeIndex ? 'bg-muted' : ''
+                }`}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onChange(item);
+                  setOpen(false);
+                  setActiveIndex(-1);
+                }}
+              >
+                {item}
+              </button>
+            ))
+          )}
         </div>
       )}
     </div>
