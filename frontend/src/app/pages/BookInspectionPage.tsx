@@ -31,6 +31,7 @@ export default function BookInspectionPage() {
 
   const [estimate, setEstimate] = useState<EstimateResponse | null>(null);
   const [estimateError, setEstimateError] = useState<string | null>(null);
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     if (step !== 2) return;
@@ -67,6 +68,25 @@ export default function BookInspectionPage() {
 
     return () => clearTimeout(timer);
   }, [step, siteAddress]);
+
+  useEffect(() => {
+    const address = siteAddress.trim();
+    const timer = setTimeout(async () => {
+      if (address.length < 3) {
+        setAddressSuggestions([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/pricing/address-suggestions?input=${encodeURIComponent(address)}`);
+        const body = (await res.json()) as { items?: string[] };
+        setAddressSuggestions(Array.isArray(body?.items) ? body.items : []);
+      } catch {
+        setAddressSuggestions([]);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [siteAddress]);
 
   const canContinue = useMemo(() => {
     return Boolean(fullName.trim() && email.trim() && phone.trim() && siteAddress.trim());
@@ -162,7 +182,12 @@ export default function BookInspectionPage() {
               </div>
               <div className="md:col-span-2">
                 <label className="text-xs text-muted-foreground">Site address</label>
-                <Input value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} placeholder="Street, area, city and state" />
+                <Input value={siteAddress} list="book-inspection-address-suggestions" onChange={(e) => setSiteAddress(e.target.value)} placeholder="Street, area, city and state" />
+                <datalist id="book-inspection-address-suggestions">
+                  {addressSuggestions.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">Building type</label>

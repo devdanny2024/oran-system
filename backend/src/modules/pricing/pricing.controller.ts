@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { PricingService } from './pricing.service';
 
 @Controller('pricing')
@@ -8,5 +8,10 @@ export class PricingController {
   @Post('estimate-site')
   estimateSite(@Body() body: { address: string }) {
     return this.pricing.estimateSite(body?.address ?? '');
+  }
+
+  @Get('address-suggestions')
+  addressSuggestions(@Query('input') input: string) {
+    return this.pricing.addressSuggestions(input ?? '');
   }
 }

@@ -37,6 +37,36 @@ export class PricingService {
     return Number((R * c).toFixed(1));
   }
 
+  async addressSuggestions(input: string) {
+    const query = (input ?? '').trim();
+    if (query.length < 3) {
+      return { items: [] as string[] };
+    }
+
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      return { items: [] as string[] };
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+      query,
+    )}&components=country:ng&key=${encodeURIComponent(apiKey)}`;
+
+    try {
+      const res = await fetch(url);
+      const data: any = await res.json();
+      const items = Array.isArray(data?.predictions)
+        ? data.predictions
+            .map((p: any) => p?.description)
+            .filter((v: any) => typeof v === 'string')
+            .slice(0, 8)
+        : [];
+      return { items };
+    } catch {
+      return { items: [] as string[] };
+    }
+  }
+
   async estimateSite(address: string) {
     const cleanedAddress = (address ?? '').trim();
     if (!cleanedAddress) {

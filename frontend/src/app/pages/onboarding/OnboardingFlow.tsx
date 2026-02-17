@@ -62,6 +62,7 @@ export default function OnboardingFlow() {
   const [inspectionEstimate, setInspectionEstimate] = useState<EstimateResponse | null>(null);
   const [inspectionEstimateLoading, setInspectionEstimateLoading] = useState(false);
   const [inspectionEstimateError, setInspectionEstimateError] = useState<string | null>(null);
+  const [inspectionAddressSuggestions, setInspectionAddressSuggestions] = useState<string[]>([]);
   const [submittingInspection, setSubmittingInspection] = useState(false);
 
   useEffect(() => {
@@ -203,6 +204,20 @@ export default function OnboardingFlow() {
     if (!inspectionOpen) return;
 
     const address = inspectionAddress.trim();
+    const suggestionTimer = setTimeout(async () => {
+      if (address.length < 3) {
+        setInspectionAddressSuggestions([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/pricing/address-suggestions?input=${encodeURIComponent(address)}`);
+        const body = (await res.json()) as { items?: string[] };
+        setInspectionAddressSuggestions(Array.isArray(body?.items) ? body.items : []);
+      } catch {
+        setInspectionAddressSuggestions([]);
+      }
+    }, 250);
+
     if (!address) {
       setInspectionEstimate(null);
       setInspectionEstimateError(null);
@@ -236,7 +251,10 @@ export default function OnboardingFlow() {
       }
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(suggestionTimer);
+    };
   }, [inspectionOpen, inspectionAddress]);
 
   const openTechnicianRequest = () => {
@@ -427,8 +445,14 @@ export default function OnboardingFlow() {
               <Input
                 placeholder="Street, area, city and state"
                 value={inspectionAddress}
+                list="inspection-address-suggestions"
                 onChange={(event) => setInspectionAddress(event.target.value)}
               />
+              <datalist id="inspection-address-suggestions">
+                {inspectionAddressSuggestions.map((item) => (
+                  <option key={item} value={item} />
+                ))}
+              </datalist>
             </div>
             <div className="flex flex-col gap-1">
               <span className="text-[11px] text-muted-foreground">Representative phone number</span>
