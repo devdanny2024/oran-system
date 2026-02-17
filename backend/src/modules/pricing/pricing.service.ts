@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 type Tier = 'LAGOS' | 'WEST_NEAR' | 'OTHER';
 
+const INSPECTION_BASE_FEE_NAIRA = 15000;
+const LOGISTICS_PER_KM_NAIRA = 150;
+
 @Injectable()
 export class PricingService {
   private getBaseCoords() {
@@ -99,8 +102,9 @@ export class PricingService {
         lat: Number(first.geometry.location.lat),
         lng: Number(first.geometry.location.lng),
       });
-      const { tier, logisticsEstimate } = this.toTier(distanceKm);
-      const inspectionEstimate = Math.round(logisticsEstimate * 0.35);
+      const { tier } = this.toTier(distanceKm);
+      const logisticsEstimate = Math.round(distanceKm * LOGISTICS_PER_KM_NAIRA);
+      const inspectionEstimate = INSPECTION_BASE_FEE_NAIRA + logisticsEstimate;
 
       return {
         resolvedAddress,
@@ -115,8 +119,9 @@ export class PricingService {
     }
 
     const distanceKm = Number((meters / 1000).toFixed(1));
-    const { tier, logisticsEstimate } = this.toTier(distanceKm);
-    const inspectionEstimate = Math.round(logisticsEstimate * 0.35);
+    const { tier } = this.toTier(distanceKm);
+    const logisticsEstimate = Math.round(distanceKm * LOGISTICS_PER_KM_NAIRA);
+    const inspectionEstimate = INSPECTION_BASE_FEE_NAIRA + logisticsEstimate;
 
     return {
       resolvedAddress,
