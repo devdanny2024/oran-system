@@ -160,12 +160,18 @@ export default function LandingPage() {
                 />
               </Link>
             </div>
-            <div className="hidden md:flex items-center space-x-8">
+            <div className="hidden md:flex items-center space-x-4">
               <a href="#home" className="text-foreground hover:text-primary transition-colors">Home</a>
               <a href="#about" className="text-foreground hover:text-primary transition-colors">About</a>
               <a href="#services" className="text-foreground hover:text-primary transition-colors">Services</a>
+              <Link href="/signup">
+                <Button>Build a Package</Button>
+              </Link>
+              <Link href="/book-inspection">
+                <Button variant="outline">Book Inspection</Button>
+              </Link>
               <Link href="/login">
-                <Button variant="outline">Login</Button>
+                <Button variant="ghost">Login</Button>
               </Link>
             </div>
           </div>

@@ -35,6 +35,21 @@ export class ProjectsController {
     return this.projectsService.delete(id);
   }
 
+  @Post('public/book-inspection')
+  bookInspectionPublic(
+    @Body()
+    body: {
+      fullName: string;
+      email: string;
+      siteAddress: string;
+      contactPhone: string;
+      buildingType?: string;
+      roomsCount?: number;
+    },
+  ) {
+    return this.projectsService.bookInspectionPublic(body);
+  }
+
   @Post(':id/request-inspection')
   requestInspection(
     @Param('id') id: string,

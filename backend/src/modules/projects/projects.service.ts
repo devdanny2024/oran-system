@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { MilestoneStatus, ProjectStatus, TripStatus } from '@prisma/client';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
@@ -259,6 +260,77 @@ export class ProjectsService {
     });
 
     return updated;
+  }
+
+  async bookInspectionPublic(payload: {
+    fullName: string;
+    email: string;
+    siteAddress: string;
+    contactPhone: string;
+    buildingType?: string;
+    roomsCount?: number;
+  }) {
+    const fullName = payload.fullName?.trim();
+    const email = payload.email?.trim().toLowerCase();
+    const siteAddress = payload.siteAddress?.trim();
+    const contactPhone = payload.contactPhone?.trim();
+
+    if (!fullName || !email || !siteAddress || !contactPhone) {
+      throw new BadRequestException(
+        'Full name, email, site address and contact phone are required.',
+      );
+    }
+
+    let user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      const randomPassword = `oran-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+      user = await this.prisma.user.create({
+        data: {
+          name: fullName,
+          email,
+          phone: contactPhone,
+          passwordHash,
+          role: 'CUSTOMER',
+        },
+      });
+    }
+
+    const project = await this.prisma.project.create({
+      data: {
+        userId: user.id,
+        name: `${fullName} - Inspection Request`,
+        buildingType: payload.buildingType?.trim() || 'RESIDENTIAL',
+        roomsCount: payload.roomsCount ?? null,
+      },
+    });
+
+    await this.prisma.onboardingSession.upsert({
+      where: { projectId: project.id },
+      update: {
+        siteAddress,
+        contactPhone,
+      },
+      create: {
+        projectId: project.id,
+        siteAddress,
+        contactPhone,
+      },
+    });
+
+    const inspection = await this.requestInspection(project.id, {
+      siteAddress,
+      contactPhone,
+    });
+
+    return {
+      ...inspection,
+      projectId: project.id,
+      customerEmail: email,
+      customerName: fullName,
+    };
   }
 
   async requestInspection(
