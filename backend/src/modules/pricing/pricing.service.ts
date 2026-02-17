@@ -16,6 +16,24 @@ export class PricingService {
     return { tier: 'OTHER', logisticsEstimate: 100000 };
   }
 
+  private haversineKm(
+    origin: { lat: number; lng: number },
+    destination: { lat: number; lng: number },
+  ) {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(destination.lat - origin.lat);
+    const dLng = toRad(destination.lng - origin.lng);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(origin.lat)) *
+        Math.cos(toRad(destination.lat)) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Number((R * c).toFixed(1));
+  }
+
   async estimateSite(address: string) {
     const cleanedAddress = (address ?? '').trim();
     if (!cleanedAddress) {
@@ -77,13 +95,22 @@ export class PricingService {
     const meters = Number(element?.distance?.value ?? 0);
 
     if (!meters || element?.status !== 'OK') {
+      const distanceKm = this.haversineKm(originCoords, {
+        lat: Number(first.geometry.location.lat),
+        lng: Number(first.geometry.location.lng),
+      });
+      const { tier, logisticsEstimate } = this.toTier(distanceKm);
+      const inspectionEstimate = Math.round(logisticsEstimate * 0.35);
+
       return {
         resolvedAddress,
-        distanceKm: null,
-        tier: null,
-        logisticsEstimate: null,
-        inspectionEstimate: null,
-        warning: matrixData?.error_message || 'Unable to compute driving distance.',
+        distanceKm,
+        tier,
+        logisticsEstimate,
+        inspectionEstimate,
+        warning:
+          matrixData?.error_message ||
+          'Driving distance unavailable; estimate currently uses straight-line distance.',
       };
     }
 
