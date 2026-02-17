@@ -18,6 +18,7 @@ export default function PaystackCallbackPage() {
   const [context, setContext] = useState<{
     projectId: string;
     flowType: FlowType;
+    isPublicInspection: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function PaystackCallbackPage() {
     const reference = params.get('reference');
     const projectId = params.get('projectId');
     const type = params.get('type');
+    const source = params.get('source');
 
     if (!reference || !projectId) {
       setError('Missing payment reference or project information.');
@@ -36,8 +38,9 @@ export default function PaystackCallbackPage() {
 
     const flowType: FlowType =
       type === 'inspection' ? 'inspection' : 'milestone';
+    const isPublicInspection = source === 'public';
 
-    setContext({ projectId, flowType });
+    setContext({ projectId, flowType, isPublicInspection });
 
     const verify = async () => {
       try {
@@ -83,7 +86,9 @@ export default function PaystackCallbackPage() {
               typeof window !== 'undefined' &&
               Boolean(window.localStorage.getItem('oran_user'));
 
-            if (hasUserSession) {
+            if (isPublicInspection) {
+              router.push(`/book-inspection/success?projectId=${encodeURIComponent(projectId)}`);
+            } else if (hasUserSession) {
               router.push(`/dashboard?inspection=success`);
             } else {
               router.push(`/book-inspection/success?projectId=${encodeURIComponent(projectId)}`);
@@ -116,7 +121,9 @@ export default function PaystackCallbackPage() {
     }
 
     if (context.flowType === 'inspection') {
-      if (hasUserSession) {
+      if (context.isPublicInspection) {
+        router.push('/book-inspection');
+      } else if (hasUserSession) {
         router.push(`/dashboard/projects/${context.projectId}`);
       } else {
         router.push('/book-inspection');

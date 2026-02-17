@@ -323,6 +323,7 @@ export class ProjectsService {
     const inspection = await this.requestInspection(project.id, {
       siteAddress,
       contactPhone,
+      isPublicBooking: true,
     });
 
     return {
@@ -335,7 +336,11 @@ export class ProjectsService {
 
   async requestInspection(
     id: string,
-    payload?: { siteAddress?: string; contactPhone?: string },
+    payload?: {
+      siteAddress?: string;
+      contactPhone?: string;
+      isPublicBooking?: boolean;
+    },
   ) {
     const project = await this.prisma.project.findUnique({
       where: { id },
@@ -414,7 +419,7 @@ export class ProjectsService {
 
       const callbackUrl = `${callbackBase}?type=inspection&projectId=${encodeURIComponent(
         project.id,
-      )}`;
+      )}${payload?.isPublicBooking ? '&source=public' : ''}`;
 
       const tx = await this.paystack.initializeTransaction({
         email: project.user.email,
@@ -425,6 +430,7 @@ export class ProjectsService {
           type: 'INSPECTION_FEE',
           projectId: project.id,
           region: estimateTier ?? fallbackTier,
+          source: payload?.isPublicBooking ? 'PUBLIC_BOOKING' : 'DASHBOARD',
         },
       });
 
