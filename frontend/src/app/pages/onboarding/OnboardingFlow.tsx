@@ -451,7 +451,7 @@ export default function OnboardingFlow() {
                 Resolved address: {inspectionEstimate?.resolvedAddress || '—'}
               </p>
               <p className="text-muted-foreground">
-                Distance from ORAN base: {inspectionEstimate?.distanceKm ? `~${inspectionEstimate.distanceKm} km` : '—'}
+                Distance from ORAN base: {inspectionEstimate?.distanceKm != null ? `~${inspectionEstimate.distanceKm} km` : '—'}
               </p>
               <p className="text-muted-foreground">Pricing tier: {inspectionEstimate?.tier || '—'}</p>
               <p className="font-medium text-foreground">
