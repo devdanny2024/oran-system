@@ -175,6 +175,14 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
+          <div className="md:hidden pb-3 flex items-center gap-2">
+            <Link href="/signup" className="flex-1">
+              <Button className="w-full" size="sm">Build a Package</Button>
+            </Link>
+            <Link href="/book-inspection" className="flex-1">
+              <Button variant="outline" className="w-full" size="sm">Book Inspection</Button>
+            </Link>
+          </div>
         </div>
       </nav>
 

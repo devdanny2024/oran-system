@@ -79,7 +79,15 @@ export default function PaystackCallbackPage() {
 
         setTimeout(() => {
           if (flowType === 'inspection') {
-            router.push(`/dashboard?inspection=success`);
+            const hasUserSession =
+              typeof window !== 'undefined' &&
+              Boolean(window.localStorage.getItem('oran_user'));
+
+            if (hasUserSession) {
+              router.push(`/dashboard?inspection=success`);
+            } else {
+              router.push(`/book-inspection/success?projectId=${encodeURIComponent(projectId)}`);
+            }
           } else {
             router.push(`/dashboard/operations?projectId=${projectId}`);
           }
@@ -98,13 +106,21 @@ export default function PaystackCallbackPage() {
   }, [router]);
 
   const handleRetry = () => {
+    const hasUserSession =
+      typeof window !== 'undefined' &&
+      Boolean(window.localStorage.getItem('oran_user'));
+
     if (!context) {
-      router.push('/dashboard');
+      router.push(hasUserSession ? '/dashboard' : '/book-inspection');
       return;
     }
 
     if (context.flowType === 'inspection') {
-      router.push(`/dashboard/projects/${context.projectId}`);
+      if (hasUserSession) {
+        router.push(`/dashboard/projects/${context.projectId}`);
+      } else {
+        router.push('/book-inspection');
+      }
     } else {
       router.push(`/dashboard/operations?projectId=${context.projectId}`);
     }

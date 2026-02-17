@@ -136,8 +136,11 @@ export default function BookInspectionPage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="text-3xl font-bold text-foreground mb-2">Book Site Inspection</h1>
-        <p className="text-muted-foreground mb-8">
+        <p className="text-muted-foreground mb-2">
           No signup required. Complete details, review your fee, then proceed to payment.
+        </p>
+        <p className="text-xs text-muted-foreground mb-8">
+          After successful payment, ORAN admin is notified and you receive confirmation by email.
         </p>
 
         <Card className="p-6 space-y-6">
