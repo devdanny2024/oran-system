@@ -26,26 +26,13 @@ import {
   ChevronDown,
   MapPin,
 } from 'lucide-react';
-
-const demoVideos = [
-  {
-    src: '/video/eko.mp4',
-    title: 'Eko Smart Home',
-    cost: 'N5,600,000',
-    location: 'Eko Atlantic, Lagos',
-  },
-  {
-    src: '/video/periwinkle.mp4',
-    title: 'Periwinkle Smart Home',
-    cost: 'N5,600,000',
-    location: 'Eko Atlantic, Lagos',
-  },
-];
+import { defaultDemoVideos, type DemoVideo } from '../lib/demo-videos';
 
 export default function LandingPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [demoOpen, setDemoOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [demoVideos, setDemoVideos] = useState(defaultDemoVideos);
   const [hasScrolledOnce, setHasScrolledOnce] = useState(false);
   const [activeTooltip, setActiveTooltip] = useState<'cost' | 'location' | null>(null);
 
@@ -61,6 +48,24 @@ export default function LandingPage() {
   const [isVideoLoading, setIsVideoLoading] = useState(true);
 
   useEffect(() => {
+    const loadVideos = async () => {
+      try {
+        const response = await fetch('/api/content/demo-videos/active');
+        const data = (await response.json()) as DemoVideo[];
+        if (Array.isArray(data) && data.length > 0) {
+          setDemoVideos(data);
+          return;
+        }
+      } catch {
+        // fallback below
+      }
+      setDemoVideos(defaultDemoVideos);
+    };
+
+    void loadVideos();
+  }, []);
+
+  useEffect(() => {
     if (!demoOpen) return;
     setActiveIndex(0);
     setIsVideoLoading(true);
@@ -68,12 +73,14 @@ export default function LandingPage() {
   }, [demoOpen]);
 
   const goToNext = () => {
+    if (!demoVideos.length) return;
     setActiveIndex((prev) => (prev + 1) % demoVideos.length);
     setIsVideoLoading(true);
     setHasScrolledOnce(true);
   };
 
   const goToPrev = () => {
+    if (!demoVideos.length) return;
     setActiveIndex((prev) => (prev - 1 + demoVideos.length) % demoVideos.length);
     setIsVideoLoading(true);
     setHasScrolledOnce(true);

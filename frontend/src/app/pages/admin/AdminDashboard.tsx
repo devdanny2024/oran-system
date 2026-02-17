@@ -544,6 +544,13 @@ export default function AdminDashboard() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => router.push('/admin/demo-videos')}
+              >
+                Demo videos
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => router.push('/dashboard')}
               >
                 Customer dashboard

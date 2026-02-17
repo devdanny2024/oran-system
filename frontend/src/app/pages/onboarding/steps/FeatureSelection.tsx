@@ -16,42 +16,48 @@ export default function FeatureSelection({ data, updateData }: Props) {
       title: 'Lighting Automation',
       description: 'Control all lights remotely, set schedules, voice control',
       icon: Lightbulb,
-      color: 'text-yellow-500'
+      color: 'text-yellow-500',
+      video: 'https://videos.pexels.com/video-files/6402097/6402097-hd_1920_1080_25fps.mp4'
     },
     {
       id: 'climate',
       title: 'Climate Control',
       description: 'Smart AC, heating, and ventilation control',
       icon: Thermometer,
-      color: 'text-blue-500'
+      color: 'text-blue-500',
+      video: 'https://videos.pexels.com/video-files/8090249/8090249-hd_1920_1080_30fps.mp4'
     },
     {
       id: 'access',
       title: 'Access Control',
       description: 'Smart locks, biometric access, keyless entry',
       icon: Lock,
-      color: 'text-green-500'
+      color: 'text-green-500',
+      video: 'https://videos.pexels.com/video-files/4974914/4974914-hd_1920_1080_25fps.mp4'
     },
     {
       id: 'surveillance',
       title: 'Surveillance System',
       description: 'IP cameras, motion detection, cloud recording',
       icon: Camera,
-      color: 'text-red-500'
+      color: 'text-red-500',
+      video: 'https://videos.pexels.com/video-files/2909914/2909914-hd_1920_1080_24fps.mp4'
     },
     {
       id: 'gate',
       title: 'Gate Automation',
       description: 'Automated gate with remote control and sensors',
       icon: DoorOpen,
-      color: 'text-purple-500'
+      color: 'text-purple-500',
+      video: 'https://videos.pexels.com/video-files/852401/852401-hd_1920_1080_25fps.mp4'
     },
     {
       id: 'staircase',
       title: 'Staircase Lighting',
       description: 'Motion-activated sequential lighting',
       icon: Lamp,
-      color: 'text-indigo-500'
+      color: 'text-indigo-500',
+      video: 'https://videos.pexels.com/video-files/3209828/3209828-hd_1920_1080_25fps.mp4'
     }
   ];
 
@@ -96,9 +102,15 @@ export default function FeatureSelection({ data, updateData }: Props) {
                     <h3 className="font-semibold">{feature.title}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">{feature.description}</p>
-                  {/* Placeholder for video thumbnail */}
-                  <div className="mt-4 h-32 bg-muted rounded-lg flex items-center justify-center">
-                    <Icon className={`h-12 w-12 ${feature.color} opacity-30`} />
+                  <div className="mt-4 h-32 bg-muted rounded-lg overflow-hidden">
+                    <video
+                      src={feature.video}
+                      className="w-full h-full object-cover"
+                      muted
+                      autoPlay
+                      loop
+                      playsInline
+                    />
                   </div>
                 </div>
               </div>

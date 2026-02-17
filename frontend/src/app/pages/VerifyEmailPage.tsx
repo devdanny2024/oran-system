@@ -17,8 +17,17 @@ export default function VerifyEmailPage() {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const email = searchParams.get('email');
+
     if (!token) {
-      setState({ status: 'error', message: 'Missing verification token.' });
+      if (email) {
+        setState({
+          status: 'error',
+          message: `We've sent a verification link to ${email}. Open your inbox and click the link to verify your account.`,
+        });
+      } else {
+        setState({ status: 'error', message: 'Missing verification token.' });
+      }
       return;
     }
 

@@ -184,7 +184,7 @@ export default function ReviewQuote({ data }: Props) {
             </div>
           ) : (
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Your AI-generated quote options</h3>
+              <h3 className="font-semibold text-lg">Your quote options</h3>
               <p className="text-xs text-muted-foreground">
                 Pick a starting point now. You can still open the quote afterwards to
                 adjust quantities, remove items or add extra products before we finalize.

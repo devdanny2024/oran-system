@@ -23,6 +23,8 @@ import { PricingSettingsModule } from '../pricing-settings/pricing-settings.modu
 import { FinanceModule } from '../finance/finance.module';
 import { SupportModule } from '../support/support.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { DemoVideosModule } from '../demo-videos/demo-videos.module';
+import { PricingModule } from '../pricing/pricing.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     FinanceModule,
     SupportModule,
     NotificationsModule,
+    DemoVideosModule,
+    PricingModule,
     AuthModule,
     ProjectsModule,
     OnboardingModule,

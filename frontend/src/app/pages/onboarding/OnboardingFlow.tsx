@@ -206,7 +206,16 @@ export default function OnboardingFlow() {
               </div>
               <span className="ml-2 text-2xl font-semibold text-foreground">ORAN</span>
             </div>
-            <span className="text-sm text-muted-foreground">Step {currentStep} of {totalSteps}</span>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push('/contact')}
+              >
+                Or request a Technician
+              </Button>
+              <span className="text-sm text-muted-foreground">Step {currentStep} of {totalSteps}</span>
+            </div>
           </div>
           <Progress value={progressValue} className="h-2" />
         </div>

@@ -30,6 +30,7 @@ export default function SignUpPage() {
     password: '',
     confirmPassword: '',
     heardAboutUs: '',
+    heardAboutUsOther: '',
     agreedToTerms: false
   });
 
@@ -72,6 +73,11 @@ export default function SignUpPage() {
 
     setIsSubmitting(true);
 
+    const heardAboutUs =
+      formData.heardAboutUs === 'Others'
+        ? formData.heardAboutUsOther.trim()
+        : formData.heardAboutUs;
+
     const result = await postJson<
       { user: { id: string; name: string | null; email: string; role: string }; token: string },
       { name: string; email: string; password: string; heardAboutUs?: string }
@@ -79,7 +85,7 @@ export default function SignUpPage() {
       name: formData.fullName,
       email: formData.email,
       password: formData.password,
-      heardAboutUs: formData.heardAboutUs || undefined,
+      heardAboutUs: heardAboutUs || undefined,
     });
 
     setIsSubmitting(false);
@@ -95,7 +101,7 @@ export default function SignUpPage() {
     }
 
     toast.success('Account created successfully! Check your email to verify your account.');
-    router.push('/login');
+    router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
   };
 
   return (
@@ -162,16 +168,42 @@ export default function SignUpPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="heardAboutUs">Where did you hear about ORAN?</Label>
-                <Input
+                <select
                   id="heardAboutUs"
-                  type="text"
-                  placeholder="Instagram, a friend, event, search, etc."
                   value={formData.heardAboutUs}
                   onChange={(e) =>
                     setFormData({ ...formData, heardAboutUs: e.target.value })
                   }
-                />
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                >
+                  <option value="">Select an option</option>
+                  <option value="Instagram">📸 Instagram</option>
+                  <option value="Facebook">📘 Facebook</option>
+                  <option value="X">𝕏 X (Twitter)</option>
+                  <option value="TikTok">🎵 TikTok</option>
+                  <option value="LinkedIn">💼 LinkedIn</option>
+                  <option value="YouTube">▶️ YouTube</option>
+                  <option value="WhatsApp">💬 WhatsApp</option>
+                  <option value="Google Search">🔎 Google Search</option>
+                  <option value="Referral">🤝 Referral/Friend</option>
+                  <option value="Others">✨ Others</option>
+                </select>
               </div>
+
+              {formData.heardAboutUs === 'Others' && (
+                <div className="space-y-2">
+                  <Label htmlFor="heardAboutUsOther">Tell us more</Label>
+                  <Input
+                    id="heardAboutUsOther"
+                    type="text"
+                    placeholder="Please specify"
+                    value={formData.heardAboutUsOther}
+                    onChange={(e) =>
+                      setFormData({ ...formData, heardAboutUsOther: e.target.value })
+                    }
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>

@@ -310,6 +310,18 @@ model Notification {
   readAt    DateTime?
 }
 
+model DemoVideo {
+  id        String   @id @default(cuid())
+  title     String
+  src       String
+  cost      String?
+  location  String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum SupportStatus {
   OPEN
   IN_PROGRESS
