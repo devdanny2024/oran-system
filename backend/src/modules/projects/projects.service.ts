@@ -5,6 +5,7 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { EmailService } from '../../infrastructure/email/email.service';
 import { PaystackService } from '../../infrastructure/paystack/paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PricingService } from '../pricing/pricing.service';
 
 @Injectable()
 export class ProjectsService {
@@ -13,6 +14,7 @@ export class ProjectsService {
     private readonly email: EmailService,
     private readonly paystack: PaystackService,
     private readonly notifications: NotificationsService,
+    private readonly pricing: PricingService,
   ) {}
 
   async create(payload: CreateProjectDto) {
@@ -276,28 +278,36 @@ export class ProjectsService {
     const explicitPhone = payload?.contactPhone?.trim();
 
     const address = explicitAddress || project.onboarding?.siteAddress || '';
+
+    // Use Google Maps-based pricing estimate for inspection fee when possible.
+    const estimate = address
+      ? await this.pricing.estimateSite(address)
+      : null;
+
+    const estimateTier = (estimate?.tier as 'LAGOS' | 'WEST_NEAR' | 'OTHER' | null) ?? null;
+    const feeFromMaps = Number(estimate?.inspectionEstimate ?? 0);
+
     const lowered = address.toLowerCase();
+    const fallbackIsLagos = lowered.includes('lagos');
+    const fallbackIsAbuja = lowered.includes('abuja');
 
-    const isLagos = lowered.includes('lagos');
-    const isAbuja = lowered.includes('abuja');
+    const fallbackWesternStates = ['ogun', 'osun', 'oyo', 'ibadan', 'ondo', 'ekiti', 'kwara'];
+    const fallbackIsWesternNonLagos =
+      !fallbackIsLagos &&
+      !fallbackIsAbuja &&
+      fallbackWesternStates.some((state) => lowered.includes(state));
 
-    const westernStates = [
-      'ogun',
-      'osun',
-      'oyo',
-      'ibadan',
-      'ondo',
-      'ekiti',
-      'kwara',
-    ];
+    const fallbackTier: 'LAGOS' | 'ABUJA' | 'WEST_NEAR' | 'OTHER' =
+      fallbackIsLagos ? 'LAGOS' : fallbackIsAbuja ? 'ABUJA' : fallbackIsWesternNonLagos ? 'WEST_NEAR' : 'OTHER';
 
-    const isWesternNonLagos =
-      !isLagos &&
-      !isAbuja &&
-      westernStates.some((state) => lowered.includes(state));
+    const fallbackFee =
+      fallbackTier === 'LAGOS' || fallbackTier === 'ABUJA'
+        ? 15000
+        : fallbackTier === 'WEST_NEAR'
+        ? 30000
+        : 100000;
 
-    const fee =
-      isLagos || isAbuja ? 15000 : isWesternNonLagos ? 30000 : 100000;
+    const fee = feeFromMaps > 0 ? feeFromMaps : fallbackFee;
 
     // Ensure onboarding has the latest contact details.
     if (explicitAddress || explicitPhone) {
@@ -342,13 +352,7 @@ export class ProjectsService {
         metadata: {
           type: 'INSPECTION_FEE',
           projectId: project.id,
-          region: isLagos
-            ? 'LAGOS'
-            : isAbuja
-            ? 'ABUJA'
-            : isWesternNonLagos
-            ? 'WEST_NEAR'
-            : 'OTHER',
+          region: estimateTier ?? fallbackTier,
         },
       });
 
@@ -364,13 +368,7 @@ export class ProjectsService {
       projectId: id,
       inspectionFee: fee,
       currency: 'NGN',
-      inferredRegion: isLagos
-        ? 'LAGOS'
-        : isAbuja
-        ? 'ABUJA'
-        : isWesternNonLagos
-        ? 'WEST_NEAR'
-        : 'OTHER',
+      inferredRegion: estimateTier ?? fallbackTier,
       siteAddress: address || null,
       authorizationUrl,
     };

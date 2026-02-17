@@ -6,9 +6,10 @@ import { PrismaModule } from '../../infrastructure/prisma/prisma.module';
 import { EmailModule } from '../../infrastructure/email/email.module';
 import { PaystackModule } from '../../infrastructure/paystack/paystack.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PricingModule } from '../pricing/pricing.module';
 
 @Module({
-  imports: [PrismaModule, EmailModule, PaystackModule, NotificationsModule],
+  imports: [PrismaModule, EmailModule, PaystackModule, NotificationsModule, PricingModule],
   controllers: [ProjectsController, AdminProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],

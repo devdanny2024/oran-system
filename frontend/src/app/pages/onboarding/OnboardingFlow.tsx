@@ -11,6 +11,24 @@ import SiteDetails from './steps/SiteDetails';
 import ReviewQuote from './steps/ReviewQuote';
 import { postJson } from '../../lib/api';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
+import { Input } from '../../components/ui/input';
+
+type EstimateResponse = {
+  resolvedAddress: string | null;
+  distanceKm: number | null;
+  tier: 'LAGOS' | 'WEST_NEAR' | 'OTHER' | null;
+  logisticsEstimate: number | null;
+  inspectionEstimate: number | null;
+  warning?: string;
+};
 
 export interface OnboardingData {
   projectStatus: string;
@@ -38,6 +56,13 @@ export default function OnboardingFlow() {
     roomCount: 5,
     selectedFeatures: []
   });
+  const [inspectionOpen, setInspectionOpen] = useState(false);
+  const [inspectionAddress, setInspectionAddress] = useState('');
+  const [inspectionPhone, setInspectionPhone] = useState('');
+  const [inspectionEstimate, setInspectionEstimate] = useState<EstimateResponse | null>(null);
+  const [inspectionEstimateLoading, setInspectionEstimateLoading] = useState(false);
+  const [inspectionEstimateError, setInspectionEstimateError] = useState<string | null>(null);
+  const [submittingInspection, setSubmittingInspection] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -174,6 +199,142 @@ export default function OnboardingFlow() {
     }
   };
 
+  useEffect(() => {
+    if (!inspectionOpen) return;
+
+    const address = inspectionAddress.trim();
+    if (!address) {
+      setInspectionEstimate(null);
+      setInspectionEstimateError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setInspectionEstimateLoading(true);
+      setInspectionEstimateError(null);
+      try {
+        const res = await fetch('/api/pricing/estimate-site', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        });
+
+        const body = (await res.json()) as EstimateResponse & { message?: string };
+        if (!res.ok) {
+          setInspectionEstimate(null);
+          setInspectionEstimateError(body?.message ?? 'Unable to calculate inspection fee.');
+        } else {
+          setInspectionEstimate(body);
+        }
+      } catch (error) {
+        setInspectionEstimate(null);
+        setInspectionEstimateError(
+          error instanceof Error ? error.message : 'Unable to calculate inspection fee.',
+        );
+      } finally {
+        setInspectionEstimateLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [inspectionOpen, inspectionAddress]);
+
+  const openTechnicianRequest = () => {
+    setInspectionAddress(data.siteAddress ?? '');
+    setInspectionPhone(data.contactPhone ?? '');
+    setInspectionEstimate(null);
+    setInspectionEstimateError(null);
+    setInspectionOpen(true);
+  };
+
+  const submitTechnicianRequest = async () => {
+    if (!userId) {
+      toast.error('Please log in again to request an inspection.');
+      router.push('/login');
+      return;
+    }
+
+    const address = inspectionAddress.trim();
+    const phone = inspectionPhone.trim();
+
+    if (!address || !phone) {
+      toast.error('Please provide both site address and phone number.');
+      return;
+    }
+
+    setSubmittingInspection(true);
+    try {
+      let currentProjectId = projectId;
+
+      if (!currentProjectId) {
+        const displayName = userDisplayName?.trim();
+        const projectName = displayName
+          ? `${displayName}'s ORAN Smart Home Project`
+          : 'My ORAN Smart Home Project';
+
+        const projectResult = await postJson<
+          { id: string },
+          {
+            name: string;
+            userId: string;
+            buildingType?: string;
+            roomsCount?: number;
+          }
+        >('/projects', {
+          name: projectName,
+          userId,
+          buildingType: data.buildingType,
+          roomsCount: data.roomCount,
+        });
+
+        if (!projectResult.ok) {
+          toast.error(projectResult.error);
+          return;
+        }
+
+        currentProjectId = projectResult.data.id;
+        setProjectId(currentProjectId);
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem('oran_last_project_id', currentProjectId);
+        }
+      }
+
+      const res = await fetch(`/api/projects/${encodeURIComponent(currentProjectId)}/request-inspection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteAddress: address,
+          contactPhone: phone,
+        }),
+      });
+
+      const body = (await res.json()) as {
+        message?: string;
+        inspectionFee?: number;
+        inferredRegion?: string;
+        authorizationUrl?: string;
+      };
+
+      if (!res.ok) {
+        toast.error(body?.message ?? 'Unable to request inspection.');
+        return;
+      }
+
+      updateData({ siteAddress: address, contactPhone: phone });
+
+      const fee = Number(body?.inspectionFee ?? 0);
+      toast.success(`Inspection requested. Fee: ₦${fee.toLocaleString()}.`);
+
+      if (body?.authorizationUrl) {
+        window.location.href = body.authorizationUrl;
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to request inspection.');
+    } finally {
+      setSubmittingInspection(false);
+    }
+  };
+
   const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
@@ -210,7 +371,7 @@ export default function OnboardingFlow() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push('/contact')}
+                onClick={openTechnicianRequest}
               >
                 Or request a Technician
               </Button>
@@ -250,6 +411,68 @@ export default function OnboardingFlow() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={inspectionOpen} onOpenChange={setInspectionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request a site inspection</DialogTitle>
+            <DialogDescription>
+              Enter site address and phone number. Inspection fee is calculated with Google Maps distance logic.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-xs">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">Site address</span>
+              <Input
+                placeholder="Street, area, city and state"
+                value={inspectionAddress}
+                onChange={(event) => setInspectionAddress(event.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted-foreground">Representative phone number</span>
+              <Input
+                placeholder="Phone number we should call"
+                value={inspectionPhone}
+                onChange={(event) => setInspectionPhone(event.target.value)}
+              />
+            </div>
+
+            <div className="rounded-md border p-3 text-xs space-y-1">
+              {inspectionEstimateLoading && (
+                <p className="text-muted-foreground">Calculating live inspection fee...</p>
+              )}
+              {inspectionEstimateError && <p className="text-red-500">{inspectionEstimateError}</p>}
+              {inspectionEstimate?.warning && (
+                <p className="text-amber-600">{inspectionEstimate.warning}</p>
+              )}
+              <p className="text-muted-foreground">
+                Resolved address: {inspectionEstimate?.resolvedAddress || '—'}
+              </p>
+              <p className="text-muted-foreground">
+                Distance from ORAN base: {inspectionEstimate?.distanceKm ? `~${inspectionEstimate.distanceKm} km` : '—'}
+              </p>
+              <p className="text-muted-foreground">Pricing tier: {inspectionEstimate?.tier || '—'}</p>
+              <p className="font-medium text-foreground">
+                Estimated inspection fee:{' '}
+                {inspectionEstimate?.inspectionEstimate
+                  ? `₦${inspectionEstimate.inspectionEstimate.toLocaleString()}`
+                  : '—'}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setInspectionOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" disabled={submittingInspection} onClick={submitTechnicianRequest}>
+              {submittingInspection ? 'Submitting...' : 'Continue to payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

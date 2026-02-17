@@ -32,6 +32,15 @@ type ProjectStatus =
   | 'IN_PROGRESS'
   | 'COMPLETED';
 
+type EstimateResponse = {
+  resolvedAddress: string | null;
+  distanceKm: number | null;
+  tier: 'LAGOS' | 'WEST_NEAR' | 'OTHER' | null;
+  logisticsEstimate: number | null;
+  inspectionEstimate: number | null;
+  warning?: string;
+};
+
 type ProjectSummary = {
   id: string;
   userId: string;
@@ -50,6 +59,9 @@ export default function OverviewPage() {
   const [inspectionAddress, setInspectionAddress] = useState('');
   const [inspectionPhone, setInspectionPhone] = useState('');
   const [submittingInspection, setSubmittingInspection] = useState(false);
+  const [inspectionEstimate, setInspectionEstimate] = useState<EstimateResponse | null>(null);
+  const [inspectionEstimateLoading, setInspectionEstimateLoading] = useState(false);
+  const [inspectionEstimateError, setInspectionEstimateError] = useState<string | null>(null);
   const [userProjects, setUserProjects] = useState<ProjectSummary[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
 
@@ -124,6 +136,44 @@ export default function OverviewPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!inspectionOpen) return;
+    const address = inspectionAddress.trim();
+    if (!address) {
+      setInspectionEstimate(null);
+      setInspectionEstimateError(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setInspectionEstimateLoading(true);
+      setInspectionEstimateError(null);
+      try {
+        const res = await fetch('/api/pricing/estimate-site', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address }),
+        });
+        const body = (await res.json()) as EstimateResponse & { message?: string };
+        if (!res.ok) {
+          setInspectionEstimate(null);
+          setInspectionEstimateError(body?.message ?? 'Unable to calculate inspection fee.');
+        } else {
+          setInspectionEstimate(body);
+        }
+      } catch (error) {
+        setInspectionEstimate(null);
+        setInspectionEstimateError(
+          error instanceof Error ? error.message : 'Unable to calculate inspection fee.',
+        );
+      } finally {
+        setInspectionEstimateLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [inspectionOpen, inspectionAddress]);
+
   const handleOverviewInspection = async () => {
     if (!userId) {
       toast.error('Please log in again to request an inspection.');
@@ -176,6 +226,8 @@ export default function OverviewPage() {
       setInspectionProjectId(projectId);
       setInspectionAddress('');
       setInspectionPhone('');
+      setInspectionEstimate(null);
+      setInspectionEstimateError(null);
       setInspectionOpen(true);
     } catch (error) {
       const message =
@@ -312,24 +364,6 @@ export default function OverviewPage() {
           </DialogHeader>
           <div className="space-y-3 text-xs">
             <div className="grid gap-2 md:grid-cols-2">
-              <p className="text-muted-foreground">
-                Lagos sites:{' '}
-                <span className="font-semibold text-foreground">₦15,000</span>
-              </p>
-              <p className="text-muted-foreground">
-                South-West near Lagos (e.g. Ogun, Osun, Oyo, Ibadan, Ekiti, Ondo, Kwara):{' '}
-                <span className="font-semibold text-foreground">₦30,000</span>
-              </p>
-              <p className="text-muted-foreground">
-                Abuja sites:{' '}
-                <span className="font-semibold text-foreground">₦15,000</span>
-              </p>
-              <p className="text-muted-foreground">
-                Other locations:{' '}
-                <span className="font-semibold text-foreground">₦100,000</span>
-              </p>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <span className="text-[11px] text-muted-foreground">Site address</span>
                 <input
@@ -350,6 +384,29 @@ export default function OverviewPage() {
                   onChange={(event) => setInspectionPhone(event.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="rounded-md border p-3 text-xs space-y-1">
+              {inspectionEstimateLoading && (
+                <p className="text-muted-foreground">Calculating live inspection fee...</p>
+              )}
+              {inspectionEstimateError && <p className="text-red-500">{inspectionEstimateError}</p>}
+              {inspectionEstimate?.warning && (
+                <p className="text-amber-600">{inspectionEstimate.warning}</p>
+              )}
+              <p className="text-muted-foreground">
+                Resolved address: {inspectionEstimate?.resolvedAddress || '—'}
+              </p>
+              <p className="text-muted-foreground">
+                Distance from ORAN base: {inspectionEstimate?.distanceKm ? `~${inspectionEstimate.distanceKm} km` : '—'}
+              </p>
+              <p className="text-muted-foreground">Pricing tier: {inspectionEstimate?.tier || '—'}</p>
+              <p className="font-medium text-foreground">
+                Estimated inspection fee:{' '}
+                {inspectionEstimate?.inspectionEstimate
+                  ? `₦${inspectionEstimate.inspectionEstimate.toLocaleString()}`
+                  : '—'}
+              </p>
             </div>
           </div>
           <DialogFooter>
