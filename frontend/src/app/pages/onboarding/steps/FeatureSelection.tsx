@@ -17,7 +17,7 @@ export default function FeatureSelection({ data, updateData }: Props) {
       description: 'Control all lights remotely, set schedules, voice control',
       icon: Lightbulb,
       color: 'text-yellow-500',
-      video: 'https://videos.pexels.com/video-files/6402097/6402097-hd_1920_1080_25fps.mp4'
+      video: '/video/eko.mp4'
     },
     {
       id: 'climate',
@@ -25,7 +25,7 @@ export default function FeatureSelection({ data, updateData }: Props) {
       description: 'Smart AC, heating, and ventilation control',
       icon: Thermometer,
       color: 'text-blue-500',
-      video: 'https://videos.pexels.com/video-files/8090249/8090249-hd_1920_1080_30fps.mp4'
+      video: '/video/periwinkle.mp4'
     },
     {
       id: 'access',
@@ -33,7 +33,7 @@ export default function FeatureSelection({ data, updateData }: Props) {
       description: 'Smart locks, biometric access, keyless entry',
       icon: Lock,
       color: 'text-green-500',
-      video: 'https://videos.pexels.com/video-files/4974914/4974914-hd_1920_1080_25fps.mp4'
+      video: '/video/eko.mp4'
     },
     {
       id: 'surveillance',
@@ -41,7 +41,7 @@ export default function FeatureSelection({ data, updateData }: Props) {
       description: 'IP cameras, motion detection, cloud recording',
       icon: Camera,
       color: 'text-red-500',
-      video: 'https://videos.pexels.com/video-files/2909914/2909914-hd_1920_1080_24fps.mp4'
+      video: '/video/periwinkle.mp4'
     },
     {
       id: 'gate',
@@ -49,7 +49,7 @@ export default function FeatureSelection({ data, updateData }: Props) {
       description: 'Automated gate with remote control and sensors',
       icon: DoorOpen,
       color: 'text-purple-500',
-      video: 'https://videos.pexels.com/video-files/852401/852401-hd_1920_1080_25fps.mp4'
+      video: '/video/eko.mp4'
     },
     {
       id: 'staircase',
@@ -57,7 +57,7 @@ export default function FeatureSelection({ data, updateData }: Props) {
       description: 'Motion-activated sequential lighting',
       icon: Lamp,
       color: 'text-indigo-500',
-      video: 'https://videos.pexels.com/video-files/3209828/3209828-hd_1920_1080_25fps.mp4'
+      video: '/video/periwinkle.mp4'
     }
   ];
 
