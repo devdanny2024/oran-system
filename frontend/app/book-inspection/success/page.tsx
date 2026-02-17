@@ -1,12 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Button } from '../../../src/app/components/ui/button';
 
+export const dynamic = 'force-dynamic';
+
 export default function BookInspectionSuccessPage() {
-  const params = useSearchParams();
-  const projectId = params.get('projectId');
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    setProjectId(params.get('projectId'));
+  }, []);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-4">
